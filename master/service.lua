@@ -1,8 +1,8 @@
-local common = require "common"
+local util = require "master.util"
 local url = require "master.url"
 
 function gen_serviceurl(service_name)
-    local records = common.mesos_dns_get_srv(service_name)
+    local records = util.mesos_dns_get_srv(service_name)
     local first_ip = records[1]['ip']
     local first_port = records[1]['port']
     ngx.var.servicescheme = "http"
@@ -10,7 +10,7 @@ function gen_serviceurl(service_name)
 end
 
 -- Get (cached) Marathon app state.
-local svcapps = common.get_svcapps()
+local svcapps = util.get_svcapps()
 if svcapps then
     local svc = svcapps[ngx.var.serviceid]
     if svc then
@@ -21,7 +21,7 @@ if svcapps then
 end
 
 -- Get (cached) Mesos state.
-local state = common.mesos_get_state()
+local state = util.mesos_get_state()
 for _, framework in ipairs(state["frameworks"]) do
   if framework["id"] == ngx.var.serviceid or framework['name'] == ngx.var.serviceid then
     local webui_url = framework["webui_url"]
