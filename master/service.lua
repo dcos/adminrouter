@@ -1,5 +1,5 @@
 local common = require "common"
-local url = require "url"
+local url = require "master.url"
 
 function gen_serviceurl(service_name)
     local records = common.mesos_dns_get_srv(service_name)
