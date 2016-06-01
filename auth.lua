@@ -3,7 +3,7 @@ local jwt = require "resty.jwt"
 local cookiejar = require "resty.cookie"
 
 
-local common = require "common"
+local util = require "common.util"
 
 
 local SECRET_KEY = nil
@@ -16,7 +16,7 @@ if errorpages_dir_path == nil then
 else
     local p = errorpages_dir_path .. "/401.html"
     ngx.log(ngx.NOTICE, "Reading 401 response from `" .. p .. "`.")
-    BODY_401_ERROR_RESPONSE = common.get_file_content(p)
+    BODY_401_ERROR_RESPONSE = util.get_file_content(p)
     if (BODY_401_ERROR_RESPONSE == nil or BODY_401_ERROR_RESPONSE == '') then
         -- Normalize to '', for sending empty response bodies.
         BODY_401_ERROR_RESPONSE = ''
@@ -24,7 +24,7 @@ else
     end
     local p = errorpages_dir_path .. "/403.html"
     ngx.log(ngx.NOTICE, "Reading 403 response from `" .. p .. "`.")
-    BODY_403_ERROR_RESPONSE = common.get_file_content(p)
+    BODY_403_ERROR_RESPONSE = util.get_file_content(p)
     if (BODY_403_ERROR_RESPONSE == nil or BODY_403_ERROR_RESPONSE == '') then
         -- Normalize to '', for sending empty response bodies.
         BODY_403_ERROR_RESPONSE = ''
@@ -38,7 +38,7 @@ if key_file_path == nil then
     ngx.log(ngx.WARN, "SECRET_KEY_FILE_PATH not set.")
 else
     ngx.log(ngx.NOTICE, "Reading secret key from `" .. key_file_path .. "`.")
-    SECRET_KEY = common.get_stripped_first_line_from_file(key_file_path)
+    SECRET_KEY = util.get_stripped_first_line_from_file(key_file_path)
     if (SECRET_KEY == nil or SECRET_KEY == '') then
         -- Normalize to nil, for simplified subsequent per-request check.
         SECRET_KEY = nil

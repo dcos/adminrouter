@@ -1,10 +1,10 @@
 local cjson_safe = require "cjson.safe"
 
 
-local common = {}
+local util = {}
 
 
-function common.get_stripped_first_line_from_file(path)
+function util.get_stripped_first_line_from_file(path)
     -- Return nil when file is emtpy.
     -- Return nil open I/O error.
     -- Log I/O error details.
@@ -24,7 +24,7 @@ function common.get_stripped_first_line_from_file(path)
 end
 
 
-function common.get_file_content(path)
+function util.get_file_content(path)
     local f, err = io.open(path, "rb")
     if f then
         -- *a read mode: read entire file.
@@ -59,4 +59,4 @@ function string:strip()
 end
 
 
-return common
+return util
