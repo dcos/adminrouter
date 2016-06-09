@@ -1,6 +1,8 @@
 ngx.header.content_type = 'application/json'
 
-local public_ip = os.getenv('COREOS_PUBLIC_IPV4')
+local ip_prog = io.popen('/opt/mesosphere/bin/detect_ip_public')
+local public_ip = ip_prog:read()
+ip_prog:close()
 
 if not public_ip then
     public_ip = ngx.var.server_addr
