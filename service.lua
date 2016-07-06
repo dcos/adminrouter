@@ -23,24 +23,29 @@ end
 -- Get (cached) Mesos state.
 local state = common.mesos_get_state()
 for _, framework in ipairs(state["frameworks"]) do
-    if framework["id"] == ngx.var.serviceid or framework['name'] == ngx.var.serviceid then
-        local split_pid = framework["pid"]:split("@")
+  if framework["id"] == ngx.var.serviceid or framework['name'] == ngx.var.serviceid then
+    local webui_url = framework["webui_url"]
+    if webui_url == "" then
+      ngx.var.serviceurl = gen_serviceurl(framework['name'])
+      return
+    else
+      local parsed_webui_url = url.parse(webui_url)
+
+      local pid = framework["pid"]
+      if pid then
+        local split_pid = pid:split("@")
         local split_ipport = split_pid[2]:split(":")
         local host = split_ipport[1]
-        local webui_url = framework["webui_url"]
-        if webui_url == "" then
-            ngx.var.serviceurl = gen_serviceurl(framework['name'])
-            return
-        else
-            local parsed_webui_url = url.parse(webui_url)
-            parsed_webui_url.host = host
-            if parsed_webui_url.path == "/" then
-                parsed_webui_url.path = ""
-            end
-            ngx.var.serviceurl = parsed_webui_url:build()
-            ngx.var.servicescheme = parsed_webui_url.scheme
-            return
-        end
-        ngx.log(ngx.DEBUG, ngx.var.serviceurl)
+        parsed_webui_url.host = host
+      end
+
+      if parsed_webui_url.path == "/" then
+        parsed_webui_url.path = ""
+      end
+      ngx.var.serviceurl = parsed_webui_url:build()
+      ngx.var.servicescheme = parsed_webui_url.scheme
+      ngx.log(ngx.DEBUG, ngx.var.serviceurl)
+      return
     end
+  end
 end
