@@ -60,7 +60,7 @@ end
 local function fetch_and_cache_state_marathon()
     -- Access Marathon through localhost.
     ngx.log(ngx.NOTICE, "Cache Marathon app state")
-    local appsRes, err = request("127.0.0.1", 8080, "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
+    local appsRes, err = request("marathon.mesos", 8080, "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
 
     if err then
         ngx.log(ngx.NOTICE, "Marathon app request failed: " .. err)
