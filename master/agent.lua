@@ -6,17 +6,17 @@ if state == nil then
     ngx.say("503 Service Unavailable: invalid Mesos state.")
     return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
-for _, slave in ipairs(state["slaves"]) do
-    if slave["id"] == ngx.var.slaveid then
-        local split_pid = slave["pid"]:split("@")
-        ngx.var.slaveaddr = split_pid[2]
+for _, agent in ipairs(state["slaves"]) do
+    if agent["id"] == ngx.var.agentid then
+        local split_pid = agent["pid"]:split("@")
+        ngx.var.agentaddr = split_pid[2]
         ngx.log(
-            ngx.DEBUG, "slaveid / slaveaddr:" .. 
-            ngx.var.slaveid .. " / " .. ngx.var.slaveaddr
+            ngx.DEBUG, "agentid / agentaddr:" ..
+            ngx.var.agentid .. " / " .. ngx.var.agentaddr
             )
         return
     end
 end
 ngx.status = ngx.HTTP_NOT_FOUND
-ngx.say("404 Not Found: slave " .. ngx.var.slaveid .. " unknown.")
-return ngx.exit(ngx.HTTP_NOT_FOUND) 
+ngx.say("404 Not Found: agent " .. ngx.var.agentid .. " unknown.")
+return ngx.exit(ngx.HTTP_NOT_FOUND)
