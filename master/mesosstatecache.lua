@@ -105,16 +105,27 @@ local function fetch_and_cache_state_marathon()
        end
 
        local tasks = app["tasks"]
-       if not tasks then
-          ngx.log(ngx.NOTICE, "Cannot find tasks for app '" .. appId .. "'")
-          return
+
+       -- Process only tasks in TASK_RUNNING state.
+       -- From http://lua-users.org/wiki/TablesTutorial: "inside a pairs loop,
+       -- it's safe to reassign existing keys or remove them"
+       for i, t in ipairs(tasks) do
+          if t["state"] ~= "TASK_RUNNING" then
+             table.remove(tasks, i)
+          end
        end
 
-       local _, task = next(tasks)
-       if not task then
-          ngx.log(ngx.NOTICE, "Cannot find any task for app '" .. appId .. "'")
+       -- next() returns nil if table is empty.
+       local i, task = next(tasks)
+       if i == nil then
+          ngx.log(ngx.NOTICE, "No task in state TASK_RUNNING for app '" .. appId .. "'")
           goto continue
        end
+
+       ngx.log(
+          ngx.NOTICE,
+          "Reading state for appId '" .. appId .. "' from task with id '" .. task["id"] .. "'"
+          )
 
        local host = task["host"]
        if not host then
