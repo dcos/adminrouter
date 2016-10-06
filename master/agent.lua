@@ -9,7 +9,10 @@ end
 for _, agent in ipairs(state["slaves"]) do
     if agent["id"] == ngx.var.agentid then
         local split_pid = agent["pid"]:split("@")
-        ngx.var.agentaddr = split_pid[2]
+        local host_port = split_pid[2]:split(":")
+        ngx.var.agentaddr = host_port[1]
+        ngx.var.agentport = host_port[2]
+
         ngx.log(
             ngx.DEBUG, "agentid / agentaddr:" ..
             ngx.var.agentid .. " / " .. ngx.var.agentaddr
