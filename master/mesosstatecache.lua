@@ -60,7 +60,7 @@ end
 local function fetch_and_cache_state_marathon()
     -- Access Marathon through localhost.
     ngx.log(ngx.NOTICE, "Cache Marathon app state")
-    local appsRes, err = request("127.0.0.1", 8080, "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
+    local appsRes, err = request(UPSTREAM_MARATHON .. "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
 
     if err then
         ngx.log(ngx.NOTICE, "Marathon app request failed: " .. err)
@@ -168,7 +168,7 @@ end
 local function fetch_and_cache_state_mesos()
     -- Fetch state JSON summary from Mesos. If successful, store to SHM cache.
     -- Expected to run within lock context.
-    local mesosRes, err = request("leader.mesos", 5050, "/master/state-summary")
+    local mesosRes, err = request(UPSTREAM_MESOS .. "/master/state-summary")
 
     if err then
         ngx.log(ngx.NOTICE, "Mesos state request failed: " .. err)
