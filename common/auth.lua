@@ -1,5 +1,6 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
+local jwt_validators = require "resty.jwt-validators"
 local cookiejar = require "resty.cookie"
 
 
@@ -75,6 +76,10 @@ local function validate_jwt_or_exit()
     -- and return uid. In all other cases, terminate request handling and
     -- respond with an appropriate HTTP error status code.
 
+    -- Refs:
+    -- https://github.com/openresty/lua-nginx-module#access_by_lua
+    -- https://github.com/SkyLothar/lua-resty-jwt
+
     if SECRET_KEY == nil then
         ngx.log(ngx.ERR, "Secret key not set. Cannot validate request.")
         return exit_401()
@@ -109,13 +114,22 @@ local function validate_jwt_or_exit()
     end
 
     -- ngx.log(ngx.DEBUG, "Token: `" .. token .. "`")
-    -- Parse and verify token (also validate expiration time).
-    local jwt_obj = jwt:verify(SECRET_KEY, token)
+
+    -- By default, lua-resty-jwt does not validate claims.
+    -- Build up a claim validation specification.
+    -- Implement RFC 7519-compliant exp claim validation,
+    -- and require the DC/OS-specific `uid` claim to be present.
+    local claim_spec = {
+        exp = jwt_validators.opt_is_not_expired(),
+        __jwt = jwt_validators.require_one_of({"uid"})
+        }
+
+    local jwt_obj = jwt:verify(SECRET_KEY, token, claim_spec)
     ngx.log(ngx.DEBUG, "JSONnized JWT table: " .. cjson.encode(jwt_obj))
 
     -- .verified is False even for messed up tokens whereas .valid can be nil.
     -- So, use .verified as reference.
-    if jwt_obj.verified == false then
+    if jwt_obj.verified ~= true then
         ngx.log(ngx.NOTICE, "Invalid token. Reason: ".. jwt_obj.reason)
         return exit_401()
     end

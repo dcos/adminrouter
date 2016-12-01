@@ -1,6 +1,6 @@
 local cjson_safe = require "cjson.safe"
 local shmlock = require "resty.lock"
-local http = require "resty.http.simple"
+local http = require "resty.http"
 
 
 local _M = {}
@@ -28,29 +28,31 @@ local function cache_data(key, value)
 end
 
 
-local function request(host, port, path)
+local function request(url)
     -- Use cosocket-based HTTP library, as ngx subrequests are not available
     -- from within this code path (decoupled from nginx' request processing).
-    -- The timeout parameter is given in milliseconds.
-    local res, err = http.request(host, port,
-        {
-            path = path,
-            timeout = 10000,
-        }
-    )
+    -- The timeout parameter is given in milliseconds. The `request_uri`
+    -- method takes care of parsing scheme, host, and port from the URL.
+    local httpc = http.new()
+    httpc:set_timeout(10000)
+    local res, err = httpc:request_uri(url, {
+        method="GET",
+        ssl_verify=true
+    })
 
     if not res then
+        ngx.log(ngx.ERR, "Failed to request " .. url .. ": " .. err)
         return nil, err
     end
 
     if res.status ~= 200 then
-        return nil, "invalid response status: " .. res.status
+        return nil, "Invalid response status: " .. res.status
     end
 
     ngx.log(
         ngx.NOTICE,
-        "Request host: " .. host .. ", port: " .. port .. ", path: " .. path .. ". " ..
-        "Response Body length: " .. string.len(res.body) .. " bytes."
+        "Request url: " .. url ..
+        " -- Response Body length: " .. string.len(res.body) .. " bytes."
         )
 
     return res, nil
@@ -60,7 +62,7 @@ end
 local function fetch_and_cache_state_marathon()
     -- Access Marathon through localhost.
     ngx.log(ngx.NOTICE, "Cache Marathon app state")
-    local appsRes, err = request("127.0.0.1", 8080, "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
+    local appsRes, err = request(UPSTREAM_MARATHON .. "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME")
 
     if err then
         ngx.log(ngx.NOTICE, "Marathon app request failed: " .. err)
@@ -168,7 +170,7 @@ end
 local function fetch_and_cache_state_mesos()
     -- Fetch state JSON summary from Mesos. If successful, store to SHM cache.
     -- Expected to run within lock context.
-    local mesosRes, err = request("leader.mesos", 5050, "/master/state-summary")
+    local mesosRes, err = request(UPSTREAM_MESOS .. "/master/state-summary")
 
     if err then
         ngx.log(ngx.NOTICE, "Mesos state request failed: " .. err)
