@@ -31,14 +31,6 @@ for _, framework in ipairs(state["frameworks"]) do
     else
       local parsed_webui_url = url.parse(webui_url)
 
-      local pid = framework["pid"]
-      if pid then
-        local split_pid = pid:split("@")
-        local split_ipport = split_pid[2]:split(":")
-        local host = split_ipport[1]
-        parsed_webui_url.host = host
-      end
-
       if parsed_webui_url.path == "/" then
         parsed_webui_url.path = ""
       end
