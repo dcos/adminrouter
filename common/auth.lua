@@ -38,7 +38,7 @@ if key_file_path == nil then
     ngx.log(ngx.WARN, "SECRET_KEY_FILE_PATH not set.")
 else
     ngx.log(ngx.NOTICE, "Reading secret key from `" .. key_file_path .. "`.")
-    SECRET_KEY = util.get_stripped_first_line_from_file(key_file_path)
+    SECRET_KEY = util.get_file_content(key_file_path)
     if (SECRET_KEY == nil or SECRET_KEY == '') then
         -- Normalize to nil, for simplified subsequent per-request check.
         SECRET_KEY = nil
@@ -116,7 +116,7 @@ local function validate_jwt_or_exit()
     -- .verified is False even for messed up tokens whereas .valid can be nil.
     -- So, use .verified as reference.
     if jwt_obj.verified == false then
-        ngx.log(ngx.NOTICE, "Invalid token. Reason: ".. jwt_obj.reason)
+        ngx.log(ngx.NOTICE, "Invalid token. Reason: `".. jwt_obj.reason.."`")
         return exit_401()
     end
 
