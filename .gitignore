@@ -1,0 +1,5 @@
+*.swp
+*.pyc
+.cache/*
+test-harness/logs/*.log
+*.dia~
