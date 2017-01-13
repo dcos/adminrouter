@@ -61,7 +61,6 @@ RUN set -ex \
 #   https://github.com/docker/docker/issues/12327#issuecomment-187158265
 RUN python3 -m pip install --upgrade virtualenv
 RUN set -ex \
-    && rmdir -v /tmp && ln -sv /dev/shm /tmp \
 	&& virtualenv --no-site-packages $VENV_DIR \
     && ${VENV_DIR}/bin/pip install --upgrade setuptools pip
 
