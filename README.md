@@ -16,31 +16,31 @@ testing easier and in some cases - possible. It's written in Python and
 uses pytest fixtures and custom modules to mock out all relevant DC/OS
 features and control Nginx startup and termination.
 
-All the tests are executed in a Docker container which is controlled by the
+All the tests execute in a Docker container which is controlled by the
 Makefile. Inside the container pytest command is started which in turn pulls
-in all the relevant fixtures, such as syslog mock, mocker (DC/OS endpoints
-mock), dns mock, etc... Finally, an Nginx is spawned using the configuration
+in all the relevant fixtures, such as Syslog mock, mocker (DC/OS endpoints
+mock), DNS mock, etc... Finally, a Nginx is spawned using the configuration
 bind-mounted from the developer's repository. Tests may launch Nginx multiple
-times, in different configuration, depending on what is needed. After the
+times, in a different configuration, depending on what is needed. After the
 tests runner finishes, all the processes and the environment is cleaned up
 by pytest.
 
 Below, there is a general overview of all the components of the test harness.
 More detailed documentation can be found in docstrings and comments in the code
-itself. If in doubt, it also may be very helpful to look for examples among
+itself. If in doubt, it also may be very helpful to look for examples of
 existing tests.
 
 ### Quickstart
-In order to execute all the test, just issue:
+To execute all the test, just issue:
 
-	make test
+ make test
 
-In order have fine grained control over pytest command, execute:
+In order have fine-grained control over pytest command, execute:
 
-	make shell
+ make shell
 
-This will launch an interactive environment inside the container that has all
-the dependencies installed. The developer may now launch the `pytest` command
+This command will launch an interactive environment inside the container that has all
+the dependencies installed. The developer may now start the `pytest` command
 the way it's necessary, debug the environment and temporarily add/change
 the dependencies.
 
@@ -48,31 +48,28 @@ the dependencies.
 Makefile provides an easy way to start the testing environment without the need
 to worry about the correct docker commands. It's core concept is `adminrouter-devkit`
 container which is contains all the dependencies that are needed to run
-Admin Router, and inside which all tests-related commands are run.
+Admin Router, and inside which all tests-related commands execute.
 
 It exposes a couple of targets:
 * `make clean` - remove all containers created by the test harness. It does not
-  remove the images themselves though as the layer cache may be useful later
-  on and the user may remove them themselves.
+  remove the images themselves though as the layer cache may be useful later on
+  and the user may remove them themselves.
 * `make devkit` - creates the `adminrouter-devkit` container. By default other
-   targets execute this step automatically if devkit container image does not
-   exist yet.
+  targets execute this step automatically if devkit container image does not exist yet.
 * `make update-devkit` - updates `adminrouter-devkit`. Should be run every time
-   the Dockerfile or its dependencies change.
-* `make tests` - launch all the tests. Worth noting is the fact that mccabe
-  complexity of the code is also verified and an error is raised if it's equal
-  or above 10.
+  the Dockerfile or its dependencies change.
+* `make tests` - launch all the tests. Worth noting is the fact that McCabe
+  complexity of the code is also verified, and an error is raised if it's equal or above 10.
 * `make shell` - launch an interactive shell within the devkit container. Should
-  be used in case when fine grained control of the tests is necessary or
-  during debugging.
+  be used in a case when fine-grained control of the tests is necessary or during debugging.
 * `make flake8` - launch flake8 which will check all the tests and test-harness
   files by default.
 
 ### Docker container
 As mentioned earlier, all the commands are executed inside the `adminrouter-devkit`
 container. It follows the same build process for Nginx that happens during
-DC/OS build with the execption of setting the  `--with-debug` flag. It also
-contains some basic debugging tools, pytest related dependencies and basic
+DC/OS build with the exception of setting the  `--with-debug` flag. It also
+contains some basic debugging tools, pytest related dependencies and necessary
 files that help pytest mimic the DC/OS environment. Their location is then
 exported via environment variables to the pytest code, so changing their location
 can be done by edition only the Dockerfile.
@@ -91,7 +88,7 @@ as dependencies by all the fixtures that need this information.
 ### Service startup ordering and cleanup
 Mocking out DC/OS is a complex task, and a huge part in it have pytest
 fixtures. They take care of proper ordering of mocks and subprocess start/stop and
-cleanup and the cleanup ordering itself.
+cleanup and the cleanup order itself.
 
 Tracking the chain of fixtures and how they use each other may provide better
 understanding of how the test harness works.
@@ -105,13 +102,13 @@ done by `test-harness/modules/mocker/jwt.py` module, which together with
 token used by Admin Router itself.
 
 ### Mocker
-Mocker takes care of simulating DC/OS HTTP endpoints that Admin Router uses. It's
-basically just a thin management layer on top of multiple python-based
+Mocker takes care of simulating DC/OS HTTP endpoints that Admin Router uses.
+It's just a thin management layer on top of multiple python-based
 HTTP servers, each one of them mocking out particular component/upstream of DC/OS.
 
-It exposes the `.send_command()` method that allows to reconfigure endpoints
-the way the tests need it. It basically calls a getattr on the endpoint
-instance in order to execute given function and pass it attributes as specified
+It exposes the `.send_command()` method that allows reconfiguring endpoints
+the way the tests need it. It calls a getattr on the endpoint
+instance to execute given function and pass it attributes as specified
 by the `.send_command()` call arguments. Please see the function signature in
 the file `test-harness/modules/mocker/common.py` for details.
 
@@ -125,20 +122,20 @@ they follow inheritance tree as below:
 
 * `ReflectingUnixSocketEndpoint`, `ReflectingTCPIPEndpoint`: both of them send back
   the request data in the response body to the client for inspection. The only
-  difference between them is that the former is listening on Unix Socket
-  and the latter is listening on TCP/IP socket. They are useful for very simple
-  tests that only check if the request is hitting the right upstream and the
-  headers are correct.
+  difference between them is that the former is listening on Unix Socket and
+  the latter is listening on TCP/IP socket. They are useful for very simple
+  tests that only check if the request is hitting the right upstream and
+  the headers are correct.
 * `IAMEndpoint`, `MarathonEndpoint`, `MesosEndpoint`: specialized endpoints that
   are mimicking IAM, Marathon and Mesos respectively. Apart from the basic
   functionality (reset, bork, etc...), they are also capable of recording requests
   sent to them, and then returning them through mockers `send_command` back to the
   tests code.
 * all remaining endpoints depicted in the hierarchy are not directly usable but
-  can be inherited from and extended if necessary in order to meet the
-  requirements of testing code.
+  can be inherited from and extended if necessary to meet the
+  requirements of the testing code.
 
-Each endpoint has an id, that it basically it's http address (i.e.
+Each endpoint has an id, which is it's HTTP address (i.e.
 `http://127.0.0.1:8080` or `http:///run/dcos/dcos-metrics-agent.sock`). It's
 available via the `.id()` method. They are started and stopped via `.start()`
 and `.stop()` methods during the start and stop of mocker instance
@@ -150,13 +147,13 @@ Pytest fixtures start a couple of subprocesses:
 * two dnsmasq instances
 * Admin Router itself
 
-These do not always log to stderr/stdout, so a very simple syslog mock is also
+These do not always log to stderr/stdout, so a very simple Syslog mock is also
 provided. All the stdouts and stderrs are piped into the central log
-processing class LogCatcher. 
+processing class LogCatcher.
 
 ##### LogCatcher
 As mentioned in the previous paragraph, all the stdout/stderr file descriptors
-and syslog messages are piped into this class. It uses `poll()` call to monitor
+and Syslog messages are piped into this class. It uses `poll()` call to monitor
 all the sources for new information and push it into:
 * standard python logging module
 * logs located in `test-harness/logs/`
@@ -165,14 +162,14 @@ all the sources for new information and push it into:
 The internal buffer is available through
 `stdout_line_buffer`/`stderr_line_buffer` methods of AR object, Syslog
 object(available through a fixture), and dnsmasq processes (also through
-fixture). The buffer itself is implemented as a plain python list where each
+fixture). The buffer itself is implemented as a plain Python list where each
 log line represents a single entry. This list is shared across all the objects
-that are groking the buffer, and there is no extra protection from manipulating
-it from within tests so extra care needs to be taken.
+that are grepping the buffer, and there is no extra protection from manipulating
+it from within tests, so extra care needs to be taken.
 
 In order to simplify handling of the log lines buffers, `LineBufferFilter` class
 has been created. It exposes two interfaces:
-* context manager that allows for groking the buffer entries that were created
+* context manager that allows for grepping the buffer entries that were created
   while executing the context:
 
   ```
@@ -199,7 +196,7 @@ has been created. It exposes two interfaces:
     assert lbf.log_line_found is True
 
   ```
-Separation of the log entries stemming from different instances of given 
+Separation of the log entries stemming from different instances of given
 Subprocess class in the logfile is done by placing following line in the log
 file:
 ```
@@ -208,8 +205,8 @@ file:
 ```
 
 ##### DNS mock
-It's easier to launch dnsmasq process that will serve a static entries from a
-`/etc/hosts.dnsmasq` file than to write a fully conforming dns server in python.
+It's easier to launch dnsmasq process that will serve static entries from a
+`/etc/hosts.dnsmasq` file than to write a fully conforming DNS server in python.
 All the entries in this file point to localhost where appropriately configured
 endpoints are listening for connections, even though in real DC/OS instance
 they would point to a different server/IP address.
@@ -223,7 +220,7 @@ added to LogWatcher. LogWatcher itself takes care of draining data from it,
 with the line length limit hard-coded to 4096 bytes.
 
 ##### Nginx
-Nginx subprocess is different from others in regard to its lifetime. Pytest
+Nginx subprocess is different from others regarding its lifetime. Pytest
 fixture that pulls it into the test is module-scoped by default. If there is a
 need to have custom lifetime or just single-test scoped lifetime, then it's
 necessary to use `nginx_class` fixture instead of simple `master_ar_process` or
@@ -243,7 +240,7 @@ different files where tests reside:
   require custom AR fixtures
 * `test_boot_envvars.py`: tests that verify adminrouter startup variables
 
-`test_agent.py` and `test_master.py` may be splitted apart into smaller units,
+`test_agent.py` and `test_master.py` may be split apart into smaller units,
 but with each unit an extra start and stop of AR master or agent is required.
 This slows down the tests. Running session-scoped AR is impossible. For now,
 each endpoint has tests grouped on class level.
@@ -264,6 +261,6 @@ expressions/statements:
 
     https://docs.python.org/3.6/faq/library.html#what-kinds-of-global-value-mutation-are-thread-safe
 
-This is why the context of each endpont is not protected by locks, in
+This is why the context of each endpoint is not protected by locks, in
 case when it's only about fetching a single value from context dict or
 storing/appending one there.
