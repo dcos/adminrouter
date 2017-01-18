@@ -86,19 +86,19 @@ def verify_header(headers, header_name, header_value):
         AssertionError: header has not been found, there is more than one header
             with given name or header has incorrect value
     """
-    mathing_headers = list()
+    matching_headers = list()
 
     for header in headers:
         if header[0] == header_name:
-            mathing_headers.append(header)
+            matching_headers.append(header)
 
     # Hmmm....
-    if len(mathing_headers) != 1:
-        if len(mathing_headers) == 0:
+    if len(matching_headers) != 1:
+        if len(matching_headers) == 0:
             msg = "Header `{}` has not been found".format(header_name)
-        elif len(mathing_headers) > 1:
+        elif len(matching_headers) > 1:
             msg = "More than one `{}` header has been found".format(header_name)
 
-        assert len(mathing_headers) == 1, msg
+        assert len(matching_headers) == 1, msg
 
-    assert mathing_headers[0][1] == header_value
+    assert matching_headers[0][1] == header_value
