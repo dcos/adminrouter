@@ -89,6 +89,8 @@ class Endpoint(abc.ABC):
         """
         initial_data = {"always_bork": False,
                         "endpoint_id": endpoint_id,
+                        "always_redirect": False,
+                        "redirect_target": None,
                         }
         self._context = EndpointContext(initial_data)
 
@@ -125,6 +127,8 @@ class Endpoint(abc.ABC):
         # but let's be consistent
         with self._context.lock:
             self._context.data['always_bork'] = False
+            self._context.data["always_redirect"] = False
+            self._context.data["redirect_target"] = None
 
     def always_bork(self, aux_data=None):
         """Make endpoint always respond with an error
@@ -136,6 +140,16 @@ class Endpoint(abc.ABC):
         del aux_data
         with self._context.lock:
             self._context.data["always_bork"] = True
+
+    def always_redirect(self, aux_data=None):
+        """Make endpoint always respond with a redirect
+
+        Args:
+            aux_data (str): target location for the redirect
+        """
+        with self._context.lock:
+            self._context.data["always_redirect"] = True
+            self._context.data["redirect_target"] = aux_data
 
 
 class StatefullHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):

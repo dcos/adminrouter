@@ -105,16 +105,20 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
                       self.log_date_time_string(),
                       log_format % args)
 
-    def _finalize_request(self, code, content_type, blob):
+    def _finalize_request(self, code, content_type, blob, extra_headers=None):
         """A helper function meant to abstract sending request to client
 
         Arguments:
             code (int): HTTP response code to send
             content_type (string): HTTP content type value of the response
             blob (b''): data to send to the client in the body of the request
+            extra_headers (dict): extra headers that should be set in the reply
         """
         self.send_response(code)
         self.send_header('Content-type', content_type)
+        if extra_headers is not None:
+            for name, val in extra_headers.items():
+                self.send_header(name, val)
         self.end_headers()
 
         self.wfile.write(blob)
