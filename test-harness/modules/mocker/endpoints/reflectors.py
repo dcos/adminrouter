@@ -54,11 +54,27 @@ class ReflectingHTTPRequestHandler(BaseHTTPRequestHandler):
         """
         ctx = self.server.context
 
-        if ctx.data['always_bork']:
+        with ctx.lock:
+            # Seems a bit overkill:
+            do_always_bork = ctx.data['always_bork']
+            do_always_redirect = ctx.data['always_redirect']
+            redirect_target = ctx.data['redirect_target']
+
+        if do_always_bork:
             msg_fmt = "Endpoint `%s` sending broken response as requested"
             log.debug(msg_fmt, ctx.data['endpoint_id'])
             blob = b"Broken response due to `always_bork` flag being set"
             self._finalize_request(500, 'text/plain; charset=utf-8', blob)
+            return
+
+        if do_always_redirect:
+            msg_fmt = "Endpoint `%s` sending redirect to `%s` as requested"
+            log.debug(msg_fmt, ctx.data['endpoint_id'], redirect_target)
+            headers = {"Location": redirect_target}
+            self._finalize_request(307,
+                                   'text/plain; charset=utf-8',
+                                   blob,
+                                   extra_headers=headers)
             return
 
         # No need to specify character encoding if type is json:

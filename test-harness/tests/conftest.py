@@ -46,7 +46,7 @@ def repo_is_ee():
 
 
 @pytest.fixture(scope='session')
-def mocker(repo_is_ee, syslog_mock):
+def mocker_s(repo_is_ee, syslog_mock):
     """Provide a gc-ed mocker instance suitable for the repository flavour"""
     if repo_is_ee:
         from mocker.ee import Mocker
@@ -62,17 +62,17 @@ def mocker(repo_is_ee, syslog_mock):
 
 
 @pytest.fixture(scope='function')
-def mocker_with_reset(mocker):
-    """An extension to `mocker` fixture that adds resetting the mock to
+def mocker(mocker_s):
+    """An extension to `mocker_s` fixture that adds resetting the mock to
     initial state after each test.
 
     The division stems from the fact that mocker instance should be created
     only once per session, while it must be reset after every test to it's
     initial state
     """
-    yield
+    yield mocker_s
 
-    mocker.reset()
+    mocker_s.reset()
 
 
 @pytest.fixture(scope='session')
@@ -148,7 +148,7 @@ def resolvconf_fixup():
 
 
 @pytest.fixture(scope='session')
-def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker):
+def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker_s):
     """Provide a Nginx class suitable for the repository flavour
 
     This fixture also binds together all the mocks (dns, syslog, mocker(endpoints),
