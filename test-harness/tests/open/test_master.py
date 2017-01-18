@@ -5,60 +5,29 @@ import logging
 import requests
 
 from mocker.endpoints.open.iam import IamEndpoint
-from util import verify_header, LineBufferFilter
+from util import LineBufferFilter
+from generic_test_code import (
+    generic_unknown_user_is_forbidden_test,
+    generic_valid_user_is_permited_test,
+)
 
 log = logging.getLogger(__name__)
 
 
 class TestExhibitorEndpointOpen():
-    def test_if_request_is_sent_to_correct_upstream(self,
-                                                    master_ar_process,
-                                                    valid_user_header):
-        url = master_ar_process.make_url_from_path('/exhibitor/some/path')
-        resp = requests.get(url,
-                            allow_redirects=False,
-                            headers=valid_user_header)
-
-        assert resp.status_code == 200
-        req_data = resp.json()
-        assert req_data['endpoint_id'] == 'http://127.0.0.1:8181'
-
     def test_if_unknown_user_is_forbidden_access(self,
                                                  master_ar_process,
                                                  invalid_user_header):
-        url = master_ar_process.make_url_from_path('/exhibitor/some/path')
-        resp = requests.get(url,
-                            allow_redirects=False,
-                            headers=invalid_user_header)
-
-        assert resp.status_code == 401
+        generic_unknown_user_is_forbidden_test(master_ar_process,
+                                               invalid_user_header,
+                                               '/exhibitor/some/path')
 
     def test_if_valid_user_is_permitted_access(self,
                                                master_ar_process,
                                                valid_user_header):
-        url = master_ar_process.make_url_from_path('/exhibitor/some/path')
-        resp = requests.get(url,
-                            allow_redirects=False,
-                            headers=valid_user_header)
-
-        assert resp.status_code == 200
-
-    def test_if_upstream_request_is_correct(self,
-                                            master_ar_process,
-                                            valid_user_header):
-        url = master_ar_process.make_url_from_path('/exhibitor/some/path')
-        resp = requests.get(url,
-                            allow_redirects=False,
-                            headers=valid_user_header)
-
-        assert resp.status_code == 200
-        req_data = resp.json()
-        assert req_data['method'] == 'GET'
-        assert req_data['path'] == '/some/path'
-        assert req_data['request_version'] == 'HTTP/1.0'
-        verify_header(req_data['headers'], 'X-Forwarded-For', '127.0.0.1')
-        verify_header(req_data['headers'], 'X-Forwarded-Proto', 'http')
-        verify_header(req_data['headers'], 'X-Real-IP', '127.0.0.1')
+        generic_valid_user_is_permited_test(master_ar_process,
+                                            valid_user_header,
+                                            '/exhibitor/some/path')
 
 
 class TestAuthenticationOpen():
