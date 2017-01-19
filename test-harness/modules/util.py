@@ -10,6 +10,7 @@
 
 import code
 import logging
+import os
 import pyroute2
 import signal
 import time
@@ -243,3 +244,22 @@ def setup_thread_debugger():
         i.interact(message)
 
     signal.signal(signal.SIGUSR1, debug)  # Register handler
+
+def ar_listen_link_setup(role):
+    assert role in ['master', 'agent']
+
+    src_path = "/opt/mesosphere/etc/adminrouter-listen.conf"
+    dst_path = "adminrouter-listen-{}.conf".format(role)
+
+    if os.path.exists(src_path):
+        assert os.path.islink(src_path)
+
+        cur_dst_path = os.readlink(src_path)
+
+        if cur_dst_path != dst_path:
+            os.unlink(src_path)
+            os.symlink(dst_path, src_path)
+
+        return
+
+    os.symlink(dst_path, src_path)

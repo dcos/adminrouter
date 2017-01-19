@@ -109,7 +109,8 @@ ENV AUTH_ERROR_PAGE_DIR_PATH=${AR_BIN_DIR}/nginx/conf/errorpages
 COPY ./ca.crt /run/dcos/pki/CA/certs/ca.crt
 COPY ./adminrouter.crt /run/dcos/pki/tls/certs/adminrouter.crt
 COPY ./adminrouter.key /run/dcos/pki/tls/private/adminrouter.key
-COPY ./adminrouter-listen.conf /opt/mesosphere/etc/adminrouter-listen.conf
+COPY ./adminrouter-listen-master.conf /opt/mesosphere/etc/adminrouter-listen-master.conf
+COPY ./adminrouter-listen-agent.conf /opt/mesosphere/etc/adminrouter-listen-agent.conf
 COPY ./adminrouter-redirect-http-https.conf /opt/mesosphere/etc/adminrouter-redirect-http-https.conf
 COPY ./adminrouter-upstreams.conf /opt/mesosphere/etc/adminrouter-upstreams.conf
 
