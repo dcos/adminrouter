@@ -13,7 +13,7 @@ from runner.common import (
     SyslogMock,
     )
 from mocker.jwt import generate_rs256_jwt, generate_hs256_jwt
-from util import add_lo_ipaddr, del_lo_ipaddr
+from util import add_lo_ipaddr, del_lo_ipaddr, ar_listen_link_setup
 
 
 @pytest.fixture()
@@ -46,7 +46,7 @@ def repo_is_ee():
 
 
 @pytest.fixture(scope='session')
-def mocker_s(repo_is_ee, syslog_mock):
+def mocker_s(repo_is_ee, syslog_mock, extra_lo_ips):
     """Provide a gc-ed mocker instance suitable for the repository flavour"""
     if repo_is_ee:
         from mocker.ee import Mocker
@@ -125,6 +125,19 @@ def navstar_ips():
 
 
 @pytest.fixture(scope='session')
+def extra_lo_ips():
+    ips = ['127.0.0.2', '127.0.0.3']
+
+    for ip in ips:
+        add_lo_ipaddr(ip, 32)
+
+    yield
+
+    for ip in ips:
+        del_lo_ipaddr(ip, 32)
+
+
+@pytest.fixture(scope='session')
 def resolvconf_fixup():
     """Redirect all DNS request to local DNS mock
 
@@ -160,8 +173,13 @@ def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker_s):
     else:
         from runner.open import Nginx
 
-    def f(*args, **kwargs):
-        return Nginx(*args, log_catcher=log_catcher, **kwargs)
+    def f(*args, role=None, **kwargs):
+        # We cannot define it as a fixture due to the fact that nginx_class is
+        # used both in other fixtures and in tests directly. Liten link setup
+        # fixture would have to be pulled in every time nginx_class is used
+        # on its own.
+        ar_listen_link_setup(role)
+        return Nginx(*args, role=role, log_catcher=log_catcher, **kwargs)
 
     return f
 

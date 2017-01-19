@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
+import pytest
 import requests
 
 from generic_test_code import (
@@ -59,4 +60,77 @@ class TestExhibitorEndpoint():
         generic_upstream_headers_verify_test(master_ar_process,
                                              valid_user_header,
                                              '/exhibitor/some/path',
+                                             )
+
+
+class TestSystemLoggingAgentEndpoint():
+    @pytest.mark.parametrize("prefix", [
+        (""),
+        ("/logs/v1"),
+        ("/metrics/v0"),
+    ])
+    @pytest.mark.parametrize("agent,endpoint", [
+        ("de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1", 'http://127.0.0.2:61001'),
+        ("de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S0", 'http://127.0.0.3:61001'),
+    ])
+    def test_if_request_is_sent_to_correct_upstream(self,
+                                                    master_ar_process,
+                                                    valid_user_header,
+                                                    agent,
+                                                    endpoint,
+                                                    prefix):
+
+        # FIXME - these are very simple tests for now, need to think how to test
+        # streaming api better. ATM we only test if HTTP is set to 1.1 for streaming
+        # stuff.
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           valid_user_header,
+                                           '/system/v1/agent/{}{}/foo/bar'.format(agent, prefix),
+                                           endpoint,
+                                           )
+
+    @pytest.mark.parametrize("prefix, http_ver", [
+        ("", 'HTTP/1.0'),
+        ("/logs/v1", 'HTTP/1.1'),
+        ("/metrics/v0", 'HTTP/1.0'),
+    ])
+    @pytest.mark.parametrize("sent,expected", [
+        ('/foo/bar?key=value&var=num',
+         '/foo/bar?key=value&var=num'),
+        ('/',
+         '/'),
+        ('',
+         ''),
+    ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            valid_user_header,
+                                            sent,
+                                            expected,
+                                            prefix, http_ver):
+
+        path_sent_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}{}'
+        path_expected_fmt = '/system/v1{}{}'
+        generic_correct_upstream_request_test(master_ar_process,
+                                              valid_user_header,
+                                              path_sent_fmt.format(prefix, sent),
+                                              path_expected_fmt.format(prefix, expected),
+                                              http_ver
+                                              )
+
+    @pytest.mark.parametrize("prefix", [
+        (""),
+        ("/logs/v1"),
+        ("/metrics/v0"),
+    ])
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             valid_user_header,
+                                             prefix,
+                                             ):
+
+        path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             valid_user_header,
+                                             path_fmt.format(prefix),
                                              )

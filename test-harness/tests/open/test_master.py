@@ -2,6 +2,7 @@
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 import logging
+import pytest
 import requests
 
 from mocker.endpoints.open.iam import IamEndpoint
@@ -28,6 +29,38 @@ class TestExhibitorEndpointOpen():
         generic_valid_user_is_permited_test(master_ar_process,
                                             valid_user_header,
                                             '/exhibitor/some/path')
+
+
+class TestOpenSystemLoggingAgentEndpoint():
+    @pytest.mark.parametrize("path", [
+        (""),
+        ("/logs/v1"),
+        ("/metrics/v0"),
+    ])
+    def test_if_unknown_user_is_forbidden_access(self,
+                                                 master_ar_process,
+                                                 invalid_user_header,
+                                                 path):
+        path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
+        generic_unknown_user_is_forbidden_test(master_ar_process,
+                                               invalid_user_header,
+                                               path_fmt.format(path),
+                                               )
+
+    @pytest.mark.parametrize("path", [
+        (""),
+        ("/logs/v1"),
+        ("/metrics/v0"),
+    ])
+    def test_if_valid_user_is_permitted_access(self,
+                                               master_ar_process,
+                                               valid_user_header,
+                                               path):
+        path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
+        generic_valid_user_is_permited_test(master_ar_process,
+                                            valid_user_header,
+                                            path_fmt.format(path),
+                                            )
 
 
 class TestAuthenticationOpen():
