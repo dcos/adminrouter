@@ -62,6 +62,10 @@ class MockerBase():
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=15002))
         # slave3
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.4', port=15003))
+        # Slave AR 1
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=61001))
+        # Slave AR 2
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=61001))
         # TODO - other endpoints go here...
 
         return res
