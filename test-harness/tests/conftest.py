@@ -46,7 +46,7 @@ def repo_is_ee():
 
 
 @pytest.fixture(scope='session')
-def mocker_s(repo_is_ee, syslog_mock):
+def mocker_s(repo_is_ee, syslog_mock, extra_lo_ips):
     """Provide a gc-ed mocker instance suitable for the repository flavour"""
     if repo_is_ee:
         from mocker.ee import Mocker
@@ -114,6 +114,19 @@ def dns_mock(log_catcher, navstar_ips, resolvconf_fixup):
 def navstar_ips():
     """Setup IPs that help dns_mock mimic navstar"""
     ips = ['198.51.100.1', '198.51.100.2', '198.51.100.3']
+
+    for ip in ips:
+        add_lo_ipaddr(ip, 32)
+
+    yield
+
+    for ip in ips:
+        del_lo_ipaddr(ip, 32)
+
+
+@pytest.fixture(scope='session')
+def extra_lo_ips():
+    ips = ['127.0.0.2', '127.0.0.3']
 
     for ip in ips:
         add_lo_ipaddr(ip, 32)
