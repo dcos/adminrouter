@@ -3,10 +3,3 @@
 127.0.0.1 master.mesos
 127.0.0.1 agent.mesos
 127.0.0.1 slave.mesos
-
-# IPv6 - even though it is not used, we still need to define it so that dnsmasq
-# does not try to forward these requests to upstream servers.
-::1 leader.mesos
-::1 master.mesos
-::1 agent.mesos
-::1 slave.mesos
