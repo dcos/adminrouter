@@ -56,6 +56,12 @@ class MockerBase():
         res.append(MesosEndpoint(ip='127.0.0.1', port=5050))
         # marathon
         res.append(MarathonEndpoint(ip='127.0.0.1', port=8080))
+        # slave1
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=15001))
+        # slave2
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=15002))
+        # slave3
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.4', port=15003))
         # TODO - other endpoints go here...
 
         return res
