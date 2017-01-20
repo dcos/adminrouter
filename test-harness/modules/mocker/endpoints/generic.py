@@ -103,6 +103,7 @@ class Endpoint(abc.ABC):
         """Start endpoint's threaded httpd server"""
         log.debug("Starting endpoint `%s`", self.id)
         self._httpd_thread.start()
+        self._httpd.startup_done.wait()
 
     def stop(self):
         """Perform cleanup of the endpoint threads
@@ -167,7 +168,12 @@ class StatefullHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """
     def __init__(self, context, *args, **kw):
         self.context = context
+        self.startup_done = threading.Event()
         http.server.HTTPServer.__init__(self, *args, **kw)
+
+    def server_activate(self):
+        super().server_activate()
+        self.startup_done.set()
 
 
 class TcpIpHttpEndpoint(Endpoint):
