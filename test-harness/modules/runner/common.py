@@ -21,6 +21,11 @@ from util import LOG_LINE_SEARCH_INTERVAL
 
 log = logging.getLogger(__name__)
 
+# These reflect AR's cache production settings:
+FIRST_POLL_PERIOD = 2
+POLL_PERIOD = 25
+CACHE_EXPIRY = 20
+
 
 class SyslogMock():
     """A mock of system syslog
@@ -668,7 +673,8 @@ class NginxBase(ManagedSubprocess):
                       ]
 
     def _set_ar_env(self, auth_enabled, default_scheme, upstream_mesos,
-                    upstream_marathon):
+                    upstream_marathon, first_poll_period, poll_period,
+                    cache_expiry):
         """Helper function used to determine Nginx env. variables
            basing on how the instance was configured
         """
@@ -677,6 +683,9 @@ class NginxBase(ManagedSubprocess):
         self._set_ar_env_from_val('DEFAULT_SCHEME', default_scheme)
         self._set_ar_env_from_val('UPSTREAM_MESOS', upstream_mesos)
         self._set_ar_env_from_val('UPSTREAM_MARATHON', upstream_marathon)
+        self._set_ar_env_from_val('FIRST_POLL_PERIOD_SECONDS', str(first_poll_period))
+        self._set_ar_env_from_val('POLL_PERIOD_SECONDS', str(poll_period))
+        self._set_ar_env_from_val('CACHE_EXPIRATION_SECONDS', str(cache_expiry))
         self._set_ar_env_from_environment('AUTH_ERROR_PAGE_DIR_PATH')
 
     def __init__(self,
@@ -686,6 +695,9 @@ class NginxBase(ManagedSubprocess):
                  upstream_marathon="http://127.0.0.1:8443",
                  role="master",
                  log_catcher=None,
+                 first_poll_period=FIRST_POLL_PERIOD,
+                 poll_period=POLL_PERIOD,
+                 cache_expiry=CACHE_EXPIRY,
                  ):
         """Initialize new Nginx instance
 
@@ -699,14 +711,24 @@ class NginxBase(ManagedSubprocess):
                 AR master or AR agent.
             log_catcher (object: LogCatcher()): a LogCatcher instance that is
                 going to be used by the mock to store captured messages.
+            first_poll_period: time in seconds before Nginx start and first
+                cache refresh
+            poll_period: cache refresh time interval in seconds
+            cache_expiry: cache expiry time in seconds
         """
         assert role in ("master", "agent"), "wrong value of 'role' param"
         self._role = role
 
         super().__init__(log_catcher)
 
-        self._set_ar_env(auth_enabled, default_scheme, upstream_mesos,
-                         upstream_marathon)
+        self._set_ar_env(auth_enabled,
+                         default_scheme,
+                         upstream_mesos,
+                         upstream_marathon,
+                         first_poll_period,
+                         poll_period,
+                         cache_expiry,
+                         )
         self._set_ar_cmdline()
 
     def make_url_from_path(self, path='/exhibitor/some/path'):

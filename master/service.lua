@@ -1,4 +1,5 @@
 local util = require "master.util"
+local cache = require "master.cache"
 local url = require "master.url"
 
 function gen_serviceurl(service_name)
@@ -10,18 +11,28 @@ function gen_serviceurl(service_name)
 end
 
 -- Get (cached) Marathon app state.
-local svcapps = util.get_svcapps()
-if svcapps then
-    local svc = svcapps[ngx.var.serviceid]
-    if svc then
-       ngx.var.serviceurl = svc["url"]
-       ngx.var.servicescheme = svc["scheme"]
-       return
-    end
+local svcapps = cache.get_cache_entry("svcapps")
+if svcapps == nil then
+    ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+    ngx.say("503 Service Unavailable: invalid Marathon service apps cache.")
+    return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+end
+
+local svc = svcapps[ngx.var.serviceid]
+if svc then
+    ngx.var.serviceurl = svc["url"]
+    ngx.var.servicescheme = svc["scheme"]
+    return
 end
 
 -- Get (cached) Mesos state.
-local state = util.mesos_get_state()
+local state = cache.get_cache_entry("mesosstate")
+if state == nil then
+    ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+    ngx.say("503 Service Unavailable: invalid Mesos state cache")
+    return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+end
+
 for _, framework in ipairs(state["frameworks"]) do
   if framework["id"] == ngx.var.serviceid or framework['name'] == ngx.var.serviceid then
     local webui_url = framework["webui_url"]
@@ -43,5 +54,5 @@ for _, framework in ipairs(state["frameworks"]) do
 end
 
 ngx.status = ngx.HTTP_NOT_FOUND
-ngx.say("404 Not Found: service " .. ngx.var.serviceid .. " unknown.")
+ngx.say("404 Not Found: service `" .. ngx.var.serviceid .. "` unknown")
 return ngx.exit(ngx.HTTP_NOT_FOUND)
