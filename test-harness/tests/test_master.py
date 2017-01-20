@@ -137,3 +137,78 @@ class TestSystemLoggingAgentEndpoint():
                                              valid_user_header,
                                              path_fmt.format(prefix),
                                              )
+
+
+class TestSystemApiLeaderProxing():
+    def test_if_request_is_sent_to_the_current_mesos_leader(self,
+                                                            master_ar_process,
+                                                            valid_user_header):
+
+        # FIXME: using MesosDNS `leader.mesos` alias makes things hard to test.
+        # Dropping in in favour of cache+API call would improve reliability as
+        # well. So no "changing the leader and testing results tests for now"
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           valid_user_header,
+                                           '/system/v1/leader/mesos/foo/bar',
+                                           'http://127.0.0.2:80',
+                                           )
+
+    def test_if_request_is_sent_to_the_current_marathon_leader(
+            self, master_ar_process, valid_user_header):
+
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           valid_user_header,
+                                           '/system/v1/leader/marathon/foo/bar',
+                                           'http://127.0.0.2:80',
+                                           )
+
+        # Changing leader is covered in cache tests
+
+    @pytest.mark.parametrize("endpoint_type", [
+        ("marathon"),
+        ("mesos"),
+    ])
+    @pytest.mark.parametrize("sent,expected", [
+        ('/foo/bar?key=value&var=num',
+         '/foo/bar?key=value&var=num'),
+        ('/foo/bar/baz',
+         '/foo/bar/baz'),
+        ('/',
+         '/'),
+        ('',
+         ''),
+    ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            valid_user_header,
+                                            sent,
+                                            expected,
+                                            endpoint_type):
+
+        # FIXME - these are very simple tests for now, need to think how to test
+        # streaming api better. ATM we only test if HTTP is set to 1.1 for streaming
+        # stuff.
+        path_sent = '/system/v1/leader/mesos' + sent
+        path_expected = '/system/v1' + expected
+        generic_correct_upstream_request_test(master_ar_process,
+                                              valid_user_header,
+                                              path_sent,
+                                              path_expected,
+                                              http_ver="HTTP/1.1"
+                                              )
+
+    @pytest.mark.parametrize("endpoint_type", [
+        ("marathon"),
+        ("mesos"),
+    ])
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             valid_user_header,
+                                             endpoint_type,
+                                             ):
+
+        path_fmt = '/system/v1/leader/{}/foo/bar/bzzz'
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             valid_user_header,
+                                             path_fmt.format(endpoint_type),
+                                             )

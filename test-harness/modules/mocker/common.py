@@ -66,7 +66,12 @@ class MockerBase():
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=61001))
         # Slave AR 2
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=61001))
-        # TODO - other endpoints go here...
+        # task-nginx
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=16001))
+        # general purpose reflectors, used i.e. for Maratho leader testing
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=80))
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=80))
+        # TODO - other endpoints common for all flavours go here...
 
         return res
 
