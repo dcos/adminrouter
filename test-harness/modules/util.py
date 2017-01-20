@@ -12,6 +12,7 @@ import code
 import logging
 import os
 import pyroute2
+import re
 import signal
 import time
 import traceback
@@ -20,6 +21,25 @@ import traceback
 LOG_LINE_SEARCH_INTERVAL = 0.2
 
 log = logging.getLogger(__name__)
+
+class SearchCriteria:
+    """A helper class that is meant to group together search criteria for
+       LineBufferFilter objects
+    """
+    __slots__ = ['occurrences', 'exact']
+
+    def __init__(self, occurrences, exact):
+        """Initialize new SearchCriteria object
+
+        Attributes:
+            occurrences (int): number of occurrences of the particular regexp
+              in the buffer
+            exact (bool): should the `occurrences` attribute be treated as
+              `exact number of occurrences` (True), or `at least that many
+              occurrences`.
+        """
+        self.occurrences = occurrences
+        self.exact = exact
 
 
 class LineBufferFilter():
@@ -31,7 +51,7 @@ class LineBufferFilter():
 
     It exposes two interfaces:
     * context manager interface for isolating logs from particular event, i.e.
-        lbf = LineBufferFilter(filter_string,
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=ar_process.stderr_line_buffer)
 
         with lbf:
@@ -39,7 +59,7 @@ class LineBufferFilter():
                                 allow_redirects=False,
                                 headers=header)
 
-        assert lbf.log_line_found
+        assert lbf.all_found
 
         In this case log buffer will be scanned only for entries that were added
         while executing the `requests.get()` call.
@@ -47,44 +67,75 @@ class LineBufferFilter():
     * `.scan_log_buffer()` approach in case string should be searched from the
         beginning of the log.
 
-        lbf = LineBufferFilter(filter_string,
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=ar_process.stderr_line_buffer)
 
         lbf.scan_log_buffer()
 
-        assert lbf.log_line_found is True
+        assert lbf.all_found
 
     The result - whether the log was found or not can be determined using
-    `log_line_found` attribute.
+    `all_found` property which only exposes True/False value, or `extra_matches`
+    property which provides detailed information about the lines matched and
+    the number of occurrences.
     """
-    _filter_string = None
+    _filter_regexpes = None
     _line_buffer = None
     _line_buffer_start = None
     _timeout = None
-    _log_line_found = None
 
-    def __init__(self, filter_string, line_buffer, timeout=3):
+    def __init__(self, filter_regexpes, line_buffer, timeout=3):
         """Initialize new LineBufferFilter object
 
         Create new LineBufferFilter object configured to search for string
-        `filter_string` in line buffer `filter_string` for as much as `timeout`
+        `filter_regexp` in line buffer `filter_regexp` for as much as `timeout`
         seconds.
 
         Args:
-            filter_string (str): string that the instance should look for in the logs,
-              using a plain matching/no regexpes.
             line_buffer (list()): an array of log lines, as presented by `.*_line_buffer()`
               method of the object we want to scan lines for.
             timeout (int): how long before LineBufferFilter gives up on searching for
-              filter_string in line_buffer
+              filter_regexp in line_buffer
+            filter_regexp: see below
+
+        `filter_regexp` argument can have 3 forms:
+            * regexp that the instance should look for in the logs. It has to be
+              matched at least once.
+            * a list of regexpes that the instance should look for in the logs.
+              Each one of them has to be matched at least once.
+            * a dictionary with regexp as a key and SearchCriteria object as
+              the value. The SearchCriteria object determines how exactly given
+              regexp is going to be matched
         """
         assert isinstance(timeout, int)
         assert timeout >= LOG_LINE_SEARCH_INTERVAL
         assert isinstance(line_buffer, list)
 
-        self._filter_string = filter_string
         self._line_buffer = line_buffer
         self._timeout = timeout
+
+        self._parse_filter_regexpes(filter_regexpes)
+
+    def _parse_filter_regexpes(self, filter_regexpes):
+        """Parse filter regexpes into standardized dictionary
+
+        This method implement the polymorphism described in `__init__` method
+        of this class. Both single string and list arguments are converted here
+        to standardized form of dict({<regexp>: SearchCriteria()}) object.
+
+
+        Arguments:
+            filter_regexpes: see description of this argument in `__init__`
+            method
+        """
+        if isinstance(filter_regexpes, str):
+            self._filter_regexpes = {filter_regexpes: SearchCriteria(1, False)}
+        elif isinstance(filter_regexpes, list):
+            self._filter_regexpes = {x: SearchCriteria(1, False) for x in filter_regexpes}
+        elif isinstance(filter_regexpes, dict):
+            self._filter_regexpes = filter_regexpes
+        else:
+            assert False, "Unsupported filter strings object!"
 
     def __enter__(self):
         assert self._line_buffer_start is None
@@ -93,15 +144,33 @@ class LineBufferFilter():
         self._line_buffer_start = len(self._line_buffer)
 
     def scan_log_buffer(self):
-        """Scan for `filter_string` since the beginning of the given instance's log
+        """Scan for `filter_regexp` since the beginning of the given instance's log
 
-        This is a convenience function that forces search of the `filter_string`
-        since the begining of the log buffer. It's does by simply fixing the
+        This is a convenience function that forces search of the `filter_regexp`
+        since the beginning of the log buffer. It's does by simply fixing the
         start position and calling the __exit__() method of the context manager
         """
         # Bit hacky, but good enough™
         self._line_buffer_start = 0
         self.__exit__()
+
+    def _match_line_against_filter_regexpes(self, line):
+        """Helper method that abstracts matching of the line against multiple
+           regexpes.
+
+        Each match is registered, so that it's possible to determine if
+        search criteria were met.
+
+        Arguments:
+            line (str): a line to match
+        """
+        for filter_regexp in self._filter_regexpes:
+            if re.search(filter_regexp, line, flags=0):
+                sc = self._filter_regexpes[filter_regexp]
+                if sc.exact and sc.occurrences <= 0:
+                    log.warning("filter string `%s` matched more times than requested",
+                                filter_regexp)
+                sc.occurrences -= 1
 
     def __exit__(self, *unused):
         """Context manager __exit__ method for filter string search
@@ -109,43 +178,73 @@ class LineBufferFilter():
         This is the heart of the LineBufferFilter - the whole matching happens
         here.
         """
-        assert self._log_line_found is None
-
         msg_fmt = "Beginning to scan for line `%s` in logline buffer"
-        log.debug(msg_fmt, self._filter_string)
+        log.debug(msg_fmt, list(self._filter_regexpes.keys()))
 
         deadline = time.time() + self._timeout
-        self._log_line_found = False
 
-        while time.time() < deadline and not self._log_line_found:
+        while time.time() < deadline:
             lines_scanned = 0
 
             for log_line in self._line_buffer[self._line_buffer_start:]:
-                if self._filter_string in log_line:
-                    self._log_line_found = True
+                self._match_line_against_filter_regexpes(log_line)
+                if self.all_found:
                     return
                 lines_scanned += 1
 
             self._line_buffer_start = self._line_buffer_start + lines_scanned
 
-            msg_fmt = "waiting for line `%s` to appear in logline buffer"
-            log.debug(msg_fmt, self._filter_string)
+            msg_fmt = "waiting for strings `%s` to appear in logline buffer"
+            log.debug(msg_fmt, self._regexpes_still_not_matched)
 
             time.sleep(LOG_LINE_SEARCH_INTERVAL)
 
-        msg_fmt = "Timed out while waiting for line `%s` to appear in logline buffer"
-        log.debug(msg_fmt, self._filter_string)
+        msg_fmt = "Timed out while waiting for strings `%s` to appear in logline buffer"
+        log.debug(msg_fmt, self._regexpes_still_not_matched)
 
     @property
-    def log_line_found(self):
-        """Check if LineBufferFilter found the string in the logs
+    def _regexpes_still_not_matched(self):
+        """Helper function that returns a list of regexpes that still has not
+        met search criterias"""
+        return [x for x in self._filter_regexpes if self._filter_regexpes[x].occurrences > 0]
 
-        Returns:
-            True/False, depending whether the string was found or not.
+    @property
+    def all_found(self):
+        """Has the search criteria been met ?
         """
-        assert self._log_line_found is not None
+        return all([sc.occurrences <= 0 for sc in self._filter_regexpes.values()])
 
-        return self._log_line_found
+    @property
+    def extra_matches(self):
+        """Detailed information about regexpes that has and/or has not been
+        matched.
+
+        This property can be useful if i.e. there were mixed search criterias -
+        some of the regexpes had to be strictly matched, some not.
+
+        Return:
+            It returns a dictionary with regexpes from `filter_regexpes` argument
+        of `__init__()` as keys and the number of matches as values. This number
+        can have 3 different values:
+            * if the regexp was matched exactly the number of times specified
+        (once for regexp and list of regexpes `filter_regexpes` argument), it has
+        a value of zero and the key is not present in the resulting dictionary
+            * if the input has not been matched at all in case of regexp and list
+        of regexpes `filter_regexpes` argument, or less than requested number
+        of times in case of detailed `filter_regexpes` form, it's a positive
+        number
+            * if the input has been matched more times than anticipated - a
+        negative number.
+
+        Usually it's used in `assert lbf.extra_matches == {}` form in tests
+        """
+        left = {}
+        for filter_regexp in self._filter_regexpes:
+            sc = self._filter_regexpes[filter_regexp]
+            if sc.occurrences > 0 or sc.exact and sc.occurrences < 0:
+                sc.occurrences = -sc.occurrences
+
+        return left
 
 
 def configure_logger(pytest_config):

@@ -46,14 +46,14 @@ class TestSecretKeyFilePathEnvVarBehaviour():
                                                 ar_process_without_secret_key):
         # Scanning for the exact log entry is bad, but in this case - can't be
         # avoided.
-        filter_string = 'SECRET_KEY_FILE_PATH not set.'
+        filter_regexp = 'SECRET_KEY_FILE_PATH not set.'
 
-        lbf = LineBufferFilter(filter_string,
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=ar_process_without_secret_key.stderr_line_buffer)
 
         lbf.scan_log_buffer()
 
-        assert lbf.log_line_found is True
+        assert lbf.all_found is True
 
     @pytest.mark.parametrize('ar_process_without_secret_key',
                              [('master', True), ('agent', True)],
@@ -63,14 +63,14 @@ class TestSecretKeyFilePathEnvVarBehaviour():
                                                       ar_process_without_secret_key):
         # Scanning for the exact log entry is bad, but in this case - can't be
         # avoided.
-        filter_string = 'Secret key not set or empty string.'
+        filter_regexp = 'Secret key not set or empty string.'
 
-        lbf = LineBufferFilter(filter_string,
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=ar_process_without_secret_key.stderr_line_buffer)
 
         lbf.scan_log_buffer()
 
-        assert lbf.log_line_found is True
+        assert lbf.all_found is True
 
     # TODO: ATM in Agent-Open there are no paths we can test auth with
     @pytest.mark.parametrize('ar_process_without_secret_key',

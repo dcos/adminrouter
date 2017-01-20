@@ -143,8 +143,8 @@ class TestAuthenticationOpen():
                             func_name='add_user',
                             aux_data={'uid': uid})
 
-        filter_string = 'validate_jwt_or_exit(): UID from valid JWT: `{}`'.format(uid)
-        lbf = LineBufferFilter(filter_string,
+        filter_regexp = 'validate_jwt_or_exit\(\): UID from valid JWT: `{}`'.format(uid)
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=master_ar_process.stderr_line_buffer)
 
         # Create token for this user:
@@ -158,15 +158,15 @@ class TestAuthenticationOpen():
                                 headers=header)
 
         assert resp.status_code == 200
-        assert lbf.log_line_found
+        assert lbf.all_found
 
     def test_if_invalid_auth_attempt_is_logged_correctly(
             self, master_ar_process, valid_jwt_generator):
         # Create some random, unique user that we can grep for:
         uid = 'some_random_string_abc1251231143'
 
-        filter_string = 'validate_jwt_or_exit(): User not found: `{}`'.format(uid)
-        lbf = LineBufferFilter(filter_string,
+        filter_regexp = 'validate_jwt_or_exit\(\): User not found: `{}`'.format(uid)
+        lbf = LineBufferFilter(filter_regexp,
                                line_buffer=master_ar_process.stderr_line_buffer)
 
         # Create token for this user:
@@ -180,4 +180,4 @@ class TestAuthenticationOpen():
                                 headers=header)
 
         assert resp.status_code == 401
-        assert lbf.log_line_found
+        assert lbf.all_found

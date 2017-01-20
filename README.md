@@ -197,27 +197,27 @@ has been created. It exposes two interfaces:
   while executing the context:
 
   ```
-    filter_string = 'validate_jwt_or_exit(): User not found: `{}`'.format(uid)
-    lbf = LineBufferFilter(filter_string,
-                            line_buffer=master_ar_process.stderr_line_buffer)
+    filter_regexp = 'validate_jwt_or_exit\(\): User not found: `{}`'.format(uid)
+    lbf = LineBufferFilter(filter_regexp,
+                           line_buffer=master_ar_process.stderr_line_buffer)
     with lbf:
         resp = requests.get(url,
                             allow_redirects=False,
                             headers=header)
-    assert lbf.log_line_found
+    assert lbf.all_found
 
   ```
 * `scan_log_buffer()` method that scans all the entries, since the subprocess
   start.
   ```
-    filter_string = 'Secret key not set or empty string.'
+    filter_regexp = 'Secret key not set or empty string.'
 
-    lbf = LineBufferFilter(filter_string,
-                            line_buffer=ar_process_without_secret_key.stderr_line_buffer)
+    lbf = LineBufferFilter(filter_regexp,
+                           line_buffer=ar_process_without_secret_key.stderr_line_buffer)
 
     lbf.scan_log_buffer()
 
-    assert lbf.log_line_found is True
+    assert lbf.all_found is True
 
   ```
 Separation of the log entries stemming from different instances of a given
