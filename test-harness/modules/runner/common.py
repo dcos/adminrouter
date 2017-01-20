@@ -158,16 +158,16 @@ class LogWriter():
             if event_type == select.POLLHUP:
                 raise LogSourceEmpty()
 
-    def __init__(self, fd, log_file, log_level=logging.INFO):
+    def __init__(self, fd, log_file, log_level=None):
         """Initialize new LogWriter instance
 
         Args:
             fd (obj: python file descriptor): file descriptor from which log
                 lines should be read.
-            log_file (str): if not None - log all the gathered log lines to
-                file at the given location
+            log_file (str): log all the gathered log lines to file at the
+                given location
             log_level (int): log level with which all the log lines should be
-                logged with
+                logged with, do not log to stdout if None
         """
         self._fd = fd
         self._log_level = log_level
@@ -205,7 +205,8 @@ class LogWriter():
 
         # yeah, we are guessing encoding here:
         line = line_bytes.decode('utf-8', errors='backslashreplace')
-        log.log(self._log_level, line)
+        if self._log_level is not None:
+            log.log(self._log_level, line)
         self._append_line_to_line_buffer(line)
 
     def _append_line_to_line_buffer(self, line):
@@ -312,7 +313,7 @@ class LogCatcher():
         self._logger_thread.start()
         log.info("LogCatcher thread has started")
 
-    def add_fd(self, fd, log_level=logging.INFO, log_file=None):
+    def add_fd(self, fd, log_file, log_level=None):
         """Begin handling new file descriptor
 
         This method adds given file descriptor to the set monitored by
@@ -324,7 +325,7 @@ class LogCatcher():
             log_file (str): if not None - log all the gathered log lines to
                 file at the given location
             log_level (int): log level with which all the log lines should be
-                logged with
+                logged with, do not log to stdout if None
         """
         assert fd.fileno() not in self._writers
 
