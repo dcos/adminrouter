@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 
 class LineBufferFilter():
-    """Helper class for grokking line buffers created by LogCatcher class
+    """Helper class for grepping line buffers created by LogCatcher class
 
     This class is meant to simplify searching of particular strings in line
     buffers created by LogCatcher object for subprocess run by this test
@@ -45,7 +45,7 @@ class LineBufferFilter():
         while executing the `requests.get()` call.
 
     * `.scan_log_buffer()` approach in case string should be searched from the
-        begining of the log.
+        beginning of the log.
 
         lbf = LineBufferFilter(filter_string,
                                line_buffer=ar_process.stderr_line_buffer)

@@ -94,13 +94,16 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
         Please check the http.server.BaseHTTPRequestHandler documentation
         for the meaning of the function arguments.
         """
+        endpoint_id = self.server.context.data['endpoint_id']
         if self.server.address_family == socket.AF_UNIX:
-            log.debug("%s - - [%s] %s\n",
+            log.debug("[Endpoint: %s] %s - - [%s] %s\n",
+                      endpoint_id,
                       "unix-socket-connection",
                       self.log_date_time_string(),
                       log_format % args)
         else:
-            log.debug("%s - - [%s] %s\n",
+            log.debug("[Endpoint: %s] %s - - [%s] %s\n",
+                      endpoint_id,
                       self.address_string(),
                       self.log_date_time_string(),
                       log_format % args)
@@ -168,11 +171,6 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
         apart from being logged, are also send to the client in order to
         make debugging potential problems easier and failures more explicit.
         """
-        endpoint_id = self.server.context.data['endpoint_id']
-
-        msg_fmt = "Endpoint `%s`, _unified_method_handler() starts"
-        log.debug(msg_fmt, endpoint_id)
-
         try:
             path, url_args = self._parse_request_path()
             body_args = self._parse_request_body()
@@ -182,6 +180,7 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
         # Pylint, please trust me on this one ;)
         # pylint: disable=W0703
         except Exception:
+            endpoint_id = self.server.context.data['endpoint_id']
             msg_fmt = ("Exception occurred while handling the request in "
                        "endpoint `%s`")
             log.exception(msg_fmt, endpoint_id)

@@ -9,6 +9,17 @@ log = logging.getLogger(__name__)
 
 
 def generic_unknown_user_is_forbidden_test(ar, auth_header, path):
+    """Test if invalid user is forbidden access
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is invalid.
+        path (str): path for which request should be made
+    """
     url = ar.make_url_from_path(path)
     resp = requests.get(url,
                         allow_redirects=False,
@@ -17,7 +28,18 @@ def generic_unknown_user_is_forbidden_test(ar, auth_header, path):
     assert resp.status_code == 401
 
 
-def generic_valid_user_is_permited_test(ar, auth_header, path):
+def generic_valid_user_is_permitted_test(ar, auth_header, path):
+    """Test if valid user is forbidden access
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is valid and the request should be accepted.
+        path (str): path for which request should be made
+    """
     url = ar.make_url_from_path(path)
     resp = requests.get(url,
                         allow_redirects=False,
@@ -27,7 +49,18 @@ def generic_valid_user_is_permited_test(ar, auth_header, path):
 
 
 def generic_upstream_headers_verify_test(ar, auth_header, path):
-    url = ar.make_url_from_path('/exhibitor/some/path')
+    """Test if headers sent upstream are correct
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is valid and the request should be accepted.
+        path (str): path for which request should be made
+    """
+    url = ar.make_url_from_path(path)
     resp = requests.get(url,
                         allow_redirects=False,
                         headers=auth_header)
@@ -42,6 +75,19 @@ def generic_upstream_headers_verify_test(ar, auth_header, path):
 
 
 def generic_correct_upstream_dest_test(ar, auth_header, path, endpoint_id):
+    """Test if upstream request has been sent to correct upstream
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is valid and the request should be accepted.
+        path (str): path for which request should be made
+        endpoint_id (str): id of the endpoint where the upstream request should
+            have been sent
+    """
     url = ar.make_url_from_path(path)
     resp = requests.get(url,
                         allow_redirects=False,
@@ -54,6 +100,20 @@ def generic_correct_upstream_dest_test(ar, auth_header, path, endpoint_id):
 
 def generic_correct_upstream_request_test(
         ar, auth_header, given_path, expected_path, http_ver='HTTP/1.0'):
+    """Test if path component of the request sent upstream is correct.
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is valid and the request should be accepted.
+        given_path (str): path for which request should be made
+        expected_path (str): path that is expected to be sent to upstream
+        http_ver (str): http version string that the upstream request should be
+            made with
+    """
     url = ar.make_url_from_path(given_path)
     resp = requests.get(url,
                         allow_redirects=False,

@@ -9,7 +9,7 @@ from mocker.endpoints.open.iam import IamEndpoint
 from util import LineBufferFilter
 from generic_test_code import (
     generic_unknown_user_is_forbidden_test,
-    generic_valid_user_is_permited_test,
+    generic_valid_user_is_permitted_test,
 )
 
 log = logging.getLogger(__name__)
@@ -26,9 +26,9 @@ class TestExhibitorEndpointOpen():
     def test_if_valid_user_is_permitted_access(self,
                                                master_ar_process,
                                                valid_user_header):
-        generic_valid_user_is_permited_test(master_ar_process,
-                                            valid_user_header,
-                                            '/exhibitor/some/path')
+        generic_valid_user_is_permitted_test(master_ar_process,
+                                             valid_user_header,
+                                             '/exhibitor/some/path')
 
 
 class TestOpenSystemLoggingAgentEndpoint():
@@ -57,10 +57,10 @@ class TestOpenSystemLoggingAgentEndpoint():
                                                valid_user_header,
                                                path):
         path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
-        generic_valid_user_is_permited_test(master_ar_process,
-                                            valid_user_header,
-                                            path_fmt.format(path),
-                                            )
+        generic_valid_user_is_permitted_test(master_ar_process,
+                                             valid_user_header,
+                                             path_fmt.format(path),
+                                             )
 
 
 class TestAuthenticationOpen():

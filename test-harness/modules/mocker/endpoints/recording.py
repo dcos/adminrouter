@@ -62,7 +62,7 @@ class RecordingHTTPRequestHandler(BaseHTTPRequestHandler):
 
         with ctx.lock:
             ctx.data['requests'].append(res)
-        msg_fmt = "Endpoint `%s` recorded a request: `%s`"
+        msg_fmt = "[Endpoint `%s`] Request recorded: `%s`"
         log.debug(msg_fmt, ctx.data['endpoint_id'], res)
 
     def _send_response(self, blob):
