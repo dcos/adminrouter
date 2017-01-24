@@ -77,8 +77,10 @@ local function request(host, port, path, accept_404_reply)
         return nil, err
     end
 
-    if res.status ~= 200 and accept_404_reply and res.status ~= 404 then
-        return nil, "invalid response status: " .. res.status
+    if res.status ~= 200 then
+        if accept_404_reply and res.status ~= 404 or not accept_404_reply then
+            return nil, "invalid response status: " .. res.status
+        end
     end
 
     ngx.log(

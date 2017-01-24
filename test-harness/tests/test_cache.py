@@ -27,9 +27,10 @@ class TestCache():
             self, nginx_class, mocker, valid_user_header):
         filter_regexp = {
             'Executing cache refresh triggered by timer': SearchCriteria(1, False),
-            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(2, True),
+            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(3, True),
             'Mesos state cache has been successfully updated': SearchCriteria(1, True),
             'Marathon apps cache has been successfully updated': SearchCriteria(1, True),
+            'Marathon leader cache has been successfully updated': SearchCriteria(1, True),
             }
         # Enable recording for marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
@@ -67,9 +68,10 @@ class TestCache():
             self, nginx_class, mocker, valid_user_header):
         filter_regexp = {
             'Executing cache refresh triggered by timer': SearchCriteria(3, False),
-            'Cache `[\s\w]+` expired. Refresh.': SearchCriteria(2, True),
+            'Cache `[\s\w]+` expired. Refresh.': SearchCriteria(6, True),
             'Mesos state cache has been successfully updated': SearchCriteria(3, True),
             'Marathon apps cache has been successfully updated': SearchCriteria(3, True),
+            'Marathon leader cache has been successfully updated': SearchCriteria(3, True),
             }
         poll_period = 4
 
@@ -112,9 +114,10 @@ class TestCache():
         """...right after Nginx has started."""
         filter_regexp = {
             'Executing cache refresh triggered by request': SearchCriteria(1, True),
-            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(2, True),
+            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(4, True),
             'Mesos state cache has been successfully updated': SearchCriteria(1, True),
             'Marathon apps cache has been successfully updated': SearchCriteria(1, True),
+            'Marathon leader cache has been successfully updated': SearchCriteria(1, True),
             }
         # Enable recording for marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
@@ -216,10 +219,10 @@ class TestCache():
                 SearchCriteria(1, True),
             'Marathon apps cache has been successfully updated':
                 SearchCriteria(1, True),
-            'Coud not retrieve Mesos state cache': SearchCriteria(1, True),
+            'Could not retrieve `mesosstate` cache entry': SearchCriteria(1, True),
         }
 
-        # Break marathon
+        # Break mesos
         mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                             func_name='always_bork')
 

@@ -264,9 +264,10 @@ class LineBufferFilter():
         """
         left = {}
         for filter_regexp in self._filter_regexpes:
-            sc = self._filter_regexpes[filter_regexp]
-            if sc.occurrences > 0 or sc.exact and sc.occurrences < 0:
-                sc.occurrences = -sc.occurrences
+            search_criteria = self._filter_regexpes[filter_regexp]
+            if search_criteria.occurrences > 0 or search_criteria.exact and search_criteria.occurrences < 0:
+                search_criteria.occurrences = -search_criteria.occurrences
+                left[filter_regexp] = search_criteria.occurrences
 
         return left
 
