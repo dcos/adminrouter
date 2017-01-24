@@ -197,7 +197,7 @@ local function fetch_and_store_marathon_apps()
 
     svcApps_json = cjson_safe.encode(svcApps)
 
-    ngx.log(ngx.DEBUG, "Storing Marathon services data to SHM.")
+    ngx.log(ngx.DEBUG, "Storing Marathon apps data to SHM.")
     if not cache_data("svcapps", svcApps_json) then
         ngx.log(ngx.ERR, "Storing marathon apps cache failed")
         return
