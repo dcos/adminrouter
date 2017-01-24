@@ -7,7 +7,7 @@ import requests
 from mocker.endpoints.open.iam import IamEndpoint
 from util import LineBufferFilter
 from generic_test_code import (
-    generic_unknown_user_is_forbidden_test,
+    generic_unauthed_user_is_forbidden_test,
     generic_valid_user_is_permitted_test,
 )
 
@@ -18,7 +18,7 @@ class TestExhibitorEndpointOpen():
     def test_if_unknown_user_is_forbidden_access(self,
                                                  master_ar_process,
                                                  invalid_user_header):
-        generic_unknown_user_is_forbidden_test(master_ar_process,
+        generic_unauthed_user_is_forbidden_test(master_ar_process,
                                                invalid_user_header,
                                                '/exhibitor/some/path')
 
@@ -41,7 +41,7 @@ class TestOpenSystemLoggingAgentEndpoint():
                                                  invalid_user_header,
                                                  path):
         path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
-        generic_unknown_user_is_forbidden_test(master_ar_process,
+        generic_unauthed_user_is_forbidden_test(master_ar_process,
                                                invalid_user_header,
                                                path_fmt.format(path),
                                                )

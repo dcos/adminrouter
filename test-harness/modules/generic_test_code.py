@@ -7,8 +7,8 @@ import requests
 log = logging.getLogger(__name__)
 
 
-def generic_unknown_user_is_forbidden_test(ar, auth_header, path):
-    """Test if invalid user is forbidden access
+def generic_unauthed_user_is_forbidden_test(ar, auth_header, path):
+    """Test if unauthorized/unauthenticated user is forbidden access
 
     Helper function meant to simplify writing multiple tests testing the
     same thing for different endpoints.
