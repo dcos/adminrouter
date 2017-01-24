@@ -19,8 +19,8 @@ class TestExhibitorEndpointOpen():
                                                  master_ar_process,
                                                  invalid_user_header):
         generic_unauthed_user_is_forbidden_test(master_ar_process,
-                                               invalid_user_header,
-                                               '/exhibitor/some/path')
+                                                invalid_user_header,
+                                                '/exhibitor/some/path')
 
     def test_if_valid_user_is_permitted_access(self,
                                                master_ar_process,
@@ -42,9 +42,9 @@ class TestOpenSystemLoggingAgentEndpoint():
                                                  path):
         path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
         generic_unauthed_user_is_forbidden_test(master_ar_process,
-                                               invalid_user_header,
-                                               path_fmt.format(path),
-                                               )
+                                                invalid_user_header,
+                                                path_fmt.format(path),
+                                                )
 
     @pytest.mark.parametrize("path", [
         (""),

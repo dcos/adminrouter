@@ -21,6 +21,7 @@ LOG_LINE_SEARCH_INTERVAL = 0.2
 
 log = logging.getLogger(__name__)
 
+
 class GuardedAR():
     """Context manager for AR instances
 
@@ -265,7 +266,8 @@ class LineBufferFilter():
         left = {}
         for filter_regexp in self._filter_regexpes:
             search_criteria = self._filter_regexpes[filter_regexp]
-            if search_criteria.occurrences > 0 or search_criteria.exact and search_criteria.occurrences < 0:
+            if search_criteria.occurrences > 0 or \
+                    search_criteria.exact and search_criteria.occurrences < 0:
                 search_criteria.occurrences = -search_criteria.occurrences
                 left[filter_regexp] = search_criteria.occurrences
 
@@ -368,6 +370,7 @@ def setup_thread_debugger():
         i.interact(message)
 
     signal.signal(signal.SIGUSR1, debug)  # Register handler
+
 
 def ar_listen_link_setup(role):
     assert role in ['master', 'agent']
