@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """All the code relevant for reflecting mocker, both Unix Socket and TCP/IP based"""

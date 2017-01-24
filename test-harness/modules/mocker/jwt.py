@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """This module provides a set tools for generating JSON Web Tokens
