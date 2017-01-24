@@ -63,11 +63,10 @@ class TestExhibitorEndpoint():
 
 
 class TestSystemLoggingAgentEndpoint():
-    @pytest.mark.parametrize("prefix", [
-        (""),
-        ("/logs/v1"),
-        ("/metrics/v0"),
-    ])
+    @pytest.mark.parametrize("prefix", [(""),
+                                        ("/logs/v1"),
+                                        ("/metrics/v0"),
+                                        ])
     @pytest.mark.parametrize("agent,endpoint", [
         ("de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1", 'http://127.0.0.2:61001'),
         ("de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S0", 'http://127.0.0.3:61001'),
@@ -89,21 +88,19 @@ class TestSystemLoggingAgentEndpoint():
                                            endpoint,
                                            )
 
-    @pytest.mark.parametrize("prefix, http_ver", [
-        ("", 'HTTP/1.0'),
-        ("/logs/v1", 'HTTP/1.1'),
-        ("/metrics/v0", 'HTTP/1.0'),
-    ])
-    @pytest.mark.parametrize("sent,expected", [
-        ('/foo/bar?key=value&var=num',
-         '/foo/bar?key=value&var=num'),
-        ('/foo/bar/baz',
-         '/foo/bar/baz'),
-        ('/',
-         '/'),
-        ('',
-         ''),
-    ])
+    @pytest.mark.parametrize("prefix, http_ver", [("", 'HTTP/1.0'),
+                                                  ("/logs/v1", 'HTTP/1.1'),
+                                                  ("/metrics/v0", 'HTTP/1.0'),
+                                                  ])
+    @pytest.mark.parametrize("sent,expected", [('/foo/bar?key=value&var=num',
+                                                '/foo/bar?key=value&var=num'),
+                                               ('/foo/bar/baz',
+                                                '/foo/bar/baz'),
+                                               ('/',
+                                                '/'),
+                                               ('',
+                                                ''),
+                                               ])
     def test_if_upstream_request_is_correct(self,
                                             master_ar_process,
                                             valid_user_header,
@@ -120,11 +117,10 @@ class TestSystemLoggingAgentEndpoint():
                                               http_ver
                                               )
 
-    @pytest.mark.parametrize("prefix", [
-        (""),
-        ("/logs/v1"),
-        ("/metrics/v0"),
-    ])
+    @pytest.mark.parametrize("prefix", [(""),
+                                        ("/logs/v1"),
+                                        ("/metrics/v0"),
+                                        ])
     def test_if_upstream_headers_are_correct(self,
                                              master_ar_process,
                                              valid_user_header,
@@ -163,20 +159,18 @@ class TestSystemApiLeaderProxing():
 
         # Changing leader is covered in cache tests
 
-    @pytest.mark.parametrize("endpoint_type", [
-        ("marathon"),
-        ("mesos"),
-    ])
-    @pytest.mark.parametrize("sent,expected", [
-        ('/foo/bar?key=value&var=num',
-         '/foo/bar?key=value&var=num'),
-        ('/foo/bar/baz',
-         '/foo/bar/baz'),
-        ('/',
-         '/'),
-        ('',
-         ''),
-    ])
+    @pytest.mark.parametrize("endpoint_type", [("marathon"),
+                                               ("mesos"),
+                                               ])
+    @pytest.mark.parametrize("sent,expected", [('/foo/bar?key=value&var=num',
+                                                '/foo/bar?key=value&var=num'),
+                                               ('/foo/bar/baz',
+                                                '/foo/bar/baz'),
+                                               ('/',
+                                                '/'),
+                                               ('',
+                                                ''),
+                                               ])
     def test_if_upstream_request_is_correct(self,
                                             master_ar_process,
                                             valid_user_header,
@@ -196,10 +190,9 @@ class TestSystemApiLeaderProxing():
                                               http_ver="HTTP/1.1"
                                               )
 
-    @pytest.mark.parametrize("endpoint_type", [
-        ("marathon"),
-        ("mesos"),
-    ])
+    @pytest.mark.parametrize("endpoint_type", [("marathon"),
+                                               ("mesos"),
+                                               ])
     def test_if_upstream_headers_are_correct(self,
                                              master_ar_process,
                                              valid_user_header,

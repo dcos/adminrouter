@@ -46,10 +46,9 @@ class TestOpenSystemLoggingAgentEndpoint():
                                                 path_fmt.format(path),
                                                 )
 
-    @pytest.mark.parametrize("path", [
-        (""),
-        ("/logs/v1"),
-        ("/metrics/v0"),
+    @pytest.mark.parametrize("path", [(""),
+                                      ("/logs/v1"),
+                                      ("/metrics/v0"),
     ])
     def test_if_valid_user_is_permitted_access(self,
                                                master_ar_process,
