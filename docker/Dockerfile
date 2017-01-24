@@ -111,10 +111,10 @@ COPY ./adminrouter.key /run/dcos/pki/tls/private/adminrouter.key
 COPY ./adminrouter-redirect-http-https.conf /opt/mesosphere/etc/adminrouter-redirect-http-https.conf
 COPY ./adminrouter-upstreams.conf /opt/mesosphere/etc/adminrouter-upstreams.conf
 
-# These file's contents differ from DC/OS counterpart, as the IP addresses
-# Nginx binds to are limited to only 127.0.0.1 instead of *. The reason for it
-# is that some endpoints need to listen on TCP port 80 due to the way Nginx is
-# configured.
+# The contents of this file differ from the one that is shipped with DC/OS:
+# the IP addresses Nginx binds to are limited to only 127.0.0.1 instead of *.
+# The reason for it is that some endpoints need to listen on TCP port 80 due
+# to the way Nginx is configured.
 COPY ./adminrouter-listen-master.conf /opt/mesosphere/etc/adminrouter-listen-master.conf
 COPY ./adminrouter-listen-agent.conf /opt/mesosphere/etc/adminrouter-listen-agent.conf
 

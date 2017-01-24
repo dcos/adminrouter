@@ -16,7 +16,7 @@ local _M = {}
 local CACHE_FIRST_POLL_DELAY_SECONDS = os.getenv("CACHE_FIRST_POLL_DELAY_SECONDS")
 if CACHE_FIRST_POLL_DELAY_SECONDS == nil then
     CACHE_FIRST_POLL_DELAY_SECONDS = 2
-    ngx.log(ngx.DEBUG, "CACHE_FIRST_POLL_DELAY_SECONDS not set")
+    ngx.log(ngx.DEBUG, "CACHE_FIRST_POLL_DELAY_SECONDS not set by ENV, using default")
 else
     CACHE_FIRST_POLL_DELAY_SECONDS = tonumber(CACHE_FIRST_POLL_DELAY_SECONDS)
     ngx.log(ngx.WARN,
@@ -26,7 +26,7 @@ end
 local CACHE_POLL_PERIOD_SECONDS = os.getenv("CACHE_POLL_PERIOD_SECONDS")
 if CACHE_POLL_PERIOD_SECONDS == nil then
     CACHE_POLL_PERIOD_SECONDS = 25
-    ngx.log(ngx.DEBUG, "CACHE_POLL_PERIOD_SECONDS not set")
+    ngx.log(ngx.DEBUG, "CACHE_POLL_PERIOD_SECONDS not set by ENV, using default")
 else
     CACHE_POLL_PERIOD_SECONDS = tonumber(CACHE_POLL_PERIOD_SECONDS)
     ngx.log(ngx.WARN,
@@ -36,11 +36,11 @@ end
 local CACHE_EXPIRATION_SECONDS = os.getenv("CACHE_EXPIRATION_SECONDS")
 if CACHE_EXPIRATION_SECONDS == nil then
     CACHE_EXPIRATION_SECONDS = 20
-    ngx.log(ngx.DEBUG, "CACHE_EXPIRATION_SECONDS not set")
+    ngx.log(ngx.DEBUG, "CACHE_EXPIRATION_SECONDS not set by ENV, using default")
 else
     CACHE_EXPIRATION_SECONDS = tonumber(CACHE_EXPIRATION_SECONDS)
     ngx.log(ngx.WARN,
-    "CACHE_EXPIRATION_SECONDS has been overridden by ENV to `" .. CACHE_EXPIRATION_SECONDS .. "`")
+            "CACHE_EXPIRATION_SECONDS has been overridden by ENV to `" .. CACHE_EXPIRATION_SECONDS .. "`")
 end
 
 
@@ -95,7 +95,7 @@ local function fetch_and_store_marathon_apps()
     -- Access Marathon through localhost.
     ngx.log(ngx.NOTICE, "Cache Marathon app state")
     local appsRes, err = request("127.0.0.1", 8080,
-								 "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME",
+                                 "/v2/apps?embed=apps.tasks&label=DCOS_SERVICE_NAME",
                                  false)
 
     if err then
@@ -212,7 +212,7 @@ end
 
 
 local function fetch_and_store_marathon_leader()
-    -- Fetch state JSON summary from Mesos. If successful, store to SHM cache.
+    -- Fetch Marathon leader address. If successful, store to SHM cache.
     -- Expected to run within lock context.
     local mleaderRes, err = request("127.0.0.1", 8080, "/v2/leader", true)
 
@@ -295,10 +295,10 @@ end
 
 
 local function refresh_needed(ts_name)
-    -- Handle special case of first invocation.
     local cache = ngx.shared.cache
 
     local last_fetch_time = cache:get(ts_name)
+    -- Handle special case of first invocation.
     if not last_fetch_time then
         ngx.log(ngx.INFO, "Cache `".. ts_name .. "` empty. Fetching.")
         return true
