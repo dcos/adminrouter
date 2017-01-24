@@ -5,7 +5,7 @@ import requests
 import time
 
 from util import LineBufferFilter, SearchCriteria, GuardedAR
-from runner.common import FIRST_POLL_PERIOD
+from runner.common import FIRST_POLL_DELAY
 from mocker.endpoints.mesos import EXTRA_SLAVE_DICT
 
 log = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             lbf.scan_log_buffer()
@@ -84,7 +84,7 @@ class TestCache():
         ar = nginx_class(poll_period=poll_period, cache_expiry=3)
 
         # In total, we should get three cache updates in given time frame:
-        timeout = FIRST_POLL_PERIOD + poll_period * 2 + 1
+        timeout = FIRST_POLL_DELAY + poll_period * 2 + 1
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
@@ -124,7 +124,7 @@ class TestCache():
                             func_name='record_requests')
 
         # Make sure that timers will not interfere:
-        ar = nginx_class(first_poll_period=120,
+        ar = nginx_class(first_poll_delay=120,
                          poll_period=120,
                          cache_expiry=115)
 
@@ -169,7 +169,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             resp = requests.get(url,
@@ -198,7 +198,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             resp = requests.get(url,
@@ -229,7 +229,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             resp = requests.get(url,
@@ -260,7 +260,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             resp = requests.get(url,
@@ -334,7 +334,7 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_PERIOD + 1)
+            time.sleep(FIRST_POLL_DELAY + 1)
             for _ in range(3):
                 ping_agent_1(ar, valid_user_header)
 
@@ -361,7 +361,7 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_PERIOD + 1)
+            time.sleep(FIRST_POLL_DELAY + 1)
             for _ in range(5):
                 resp = requests.get(url,
                                     allow_redirects=False,
@@ -388,7 +388,7 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_PERIOD + 1)
+            time.sleep(FIRST_POLL_DELAY + 1)
             for _ in range(5):
                 resp = requests.get(url,
                                     allow_redirects=False,
@@ -462,7 +462,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_PERIOD + 1),
+                                   timeout=(FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
             resp = requests.get(url,
                                 allow_redirects=False,

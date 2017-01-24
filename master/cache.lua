@@ -7,24 +7,30 @@ local _M = {}
 
 -- In order to make caching code testable, these constants need to be
 -- configurable/exposed through env vars.
-local FIRST_POLL_PERIOD_SECONDS = os.getenv("FIRST_POLL_PERIOD_SECONDS")
-if FIRST_POLL_PERIOD_SECONDS == nil then
-    FIRST_POLL_PERIOD_SECONDS = 2
-    ngx.log(ngx.DEBUG, "FIRST_POLL_PERIOD_SECONDS not set")
+--
+-- Values assigned to these variable need to fufil following condidtion:
+--
+-- CACHE_FIRST_POLL_DELAY_SECONDS << CACHE_EXPIRATION_SECONDS < CACHE_POLL_PERIOD_SECONDS
+--
+--
+local CACHE_FIRST_POLL_DELAY_SECONDS = os.getenv("CACHE_FIRST_POLL_DELAY_SECONDS")
+if CACHE_FIRST_POLL_DELAY_SECONDS == nil then
+    CACHE_FIRST_POLL_DELAY_SECONDS = 2
+    ngx.log(ngx.DEBUG, "CACHE_FIRST_POLL_DELAY_SECONDS not set")
 else
-    FIRST_POLL_PERIOD_SECONDS = tonumber(FIRST_POLL_PERIOD_SECONDS)
+    CACHE_FIRST_POLL_DELAY_SECONDS = tonumber(CACHE_FIRST_POLL_DELAY_SECONDS)
     ngx.log(ngx.WARN,
-            "FIRST_POLL_PERIOD_SECONDS has been overridden by ENV to `" .. FIRST_POLL_PERIOD_SECONDS .. "`")
+            "CACHE_FIRST_POLL_DELAY_SECONDS has been overridden by ENV to `" .. CACHE_FIRST_POLL_DELAY_SECONDS .. "`")
 end
 
-local POLL_PERIOD_SECONDS = os.getenv("POLL_PERIOD_SECONDS")
-if POLL_PERIOD_SECONDS == nil then
-    POLL_PERIOD_SECONDS = 25
-    ngx.log(ngx.DEBUG, "POLL_PERIOD_SECONDS not set")
+local CACHE_POLL_PERIOD_SECONDS = os.getenv("CACHE_POLL_PERIOD_SECONDS")
+if CACHE_POLL_PERIOD_SECONDS == nil then
+    CACHE_POLL_PERIOD_SECONDS = 25
+    ngx.log(ngx.DEBUG, "CACHE_POLL_PERIOD_SECONDS not set")
 else
-    POLL_PERIOD_SECONDS = tonumber(POLL_PERIOD_SECONDS)
+    CACHE_POLL_PERIOD_SECONDS = tonumber(CACHE_POLL_PERIOD_SECONDS)
     ngx.log(ngx.WARN,
-            "POLL_PERIOD_SECONDS has been overridden by ENV to `" .. POLL_PERIOD_SECONDS .. "`")
+            "CACHE_POLL_PERIOD_SECONDS has been overridden by ENV to `" .. CACHE_POLL_PERIOD_SECONDS .. "`")
 end
 
 local CACHE_EXPIRATION_SECONDS = os.getenv("CACHE_EXPIRATION_SECONDS")
@@ -402,7 +408,7 @@ function _M.periodically_refresh_cache()
         refresh_cache(true)
 
         -- Register new timer.
-        local ok, err = ngx.timer.at(POLL_PERIOD_SECONDS, timerhandler)
+        local ok, err = ngx.timer.at(CACHE_POLL_PERIOD_SECONDS, timerhandler)
         if not ok then
             ngx.log(ngx.ERR, "Failed to create timer: " .. err)
         else
@@ -410,9 +416,9 @@ function _M.periodically_refresh_cache()
         end
     end
 
-    -- Trigger initial timer, about FIRST_POLL_PERIOD_SECONDS seconds after
+    -- Trigger initial timer, about CACHE_FIRST_POLL_DELAY_SECONDS seconds after
     -- nginx startup.
-    local ok, err = ngx.timer.at(FIRST_POLL_PERIOD_SECONDS, timerhandler)
+    local ok, err = ngx.timer.at(CACHE_FIRST_POLL_DELAY_SECONDS, timerhandler)
     if not ok then
         ngx.log(ngx.ERR, "failed to create timer: " .. err)
         return
