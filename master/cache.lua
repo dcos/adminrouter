@@ -431,13 +431,22 @@ function _M.get_cache_entry(name)
     -- Handle the special case of very early request - before the first
     -- timer-based cache refresh
     local entry_last_refresh = cache:get(name_last_refresh)
+
+    if entry_last_refresh == -1 then
+        ngx.log(ngx.ERR, "Aborting request due to persistent backend failure")
+        return nil
+    end
+
     if entry_last_refresh == nil then
         refresh_cache()
 
         entry_last_refresh = cache:get(name .. "_last_refresh")
         if entry_last_refresh == nil then
-            -- Something is really broken, abort!
-            ngx.log(ngx.ERR, "Could not retrieve last refresh time for `" .. name .. "` cache entry")
+            -- Backend is broken, abort!
+            if cache_data(name_last_refresh, -1) then
+                ngx.log(ngx.ERR, "Failed to limit `" .. name .. "` cache to only timer-based refresh")
+            end
+            ngx.log(ngx.ERR, "Backend seems to be broken, handling out refresh to timers")
             return nil
         end
     end
