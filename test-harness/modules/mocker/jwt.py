@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 log = logging.getLogger(__name__)
 
-AUTHTOKEN_LIFETIME_SECONDS = 120
+AUTHTOKEN_LIFETIME_SECONDS = 3600
 
 
 def load_key(key_path):
