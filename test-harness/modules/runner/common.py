@@ -497,8 +497,11 @@ class ManagedSubprocess(abc.ABC):
         self._INIT_COMPLETE_STR in one of log lines. If found, it is assumed
         that the process has finished init.
         """
-        # Not sure about making it @abstractproperty
-        assert self._INIT_COMPLETE_STR is not None
+        if self._INIT_COMPLETE_STR is None:
+            msg_fmt = ("Not waiting for process `%s` to start and assuming that"
+                       " it is already up")
+            log.warn(msg_fmt, self.id)
+            return True
 
         deadline = time.time() + self._START_TIMEOUT
         log_buf_pos = 0
@@ -791,3 +794,71 @@ class NginxBase(ManagedSubprocess):
             return base + path
 
         return base + path[1:]
+
+
+class Vegeta(ManagedSubprocess):
+    # Wait longer, give Vegeta more time to save report before SIGKILLing it
+    _EXIT_TIMEOUT = 15
+
+    # Disable waiting for confirmation that Vegeta started - it starts
+    # benchmark imediatelly without any stdout/stderr message
+    _INIT_COMPLETE_STR = None
+
+    _TARGETS_FILE = "/tmp/vegeta-targets.txt"
+    _REPORT_FILE = "/tmp/vegeta-report.bin"
+    _VEGETA_BIN = "/usr/local/bin/vegeta"
+
+    _results = None
+
+    def _register_stdout_stderr_to_logcatcher(self):
+        """Please check ManagedSubprocess'es class method description"""
+        log_filename = 'vegeta.stdout.log'
+        self._log_catcher.add_fd(self.stdout, log_file=log_filename)
+
+        log_filename = 'vegeta.stderr.log'
+        self._log_catcher.add_fd(self.stderr, log_file=log_filename)
+
+    def _cleanup_old_report_file(self):
+        try:
+            os.unlink(self._REPORT_FILE)
+        except OSError:
+            if os.path.exists(self._REPORT_FILE):
+                raise
+
+    def _setup_targets_file(self, target, jwt=None):
+        body = "GET {}\n".format(target)
+        if jwt is not None:
+            body += "Authorization: {}\n".format(jwt['Authorization'])
+
+        with open(self._TARGETS_FILE, 'w') as fh:
+            fh.write(body)
+
+    def __init__(self, log_catcher, target, jwt=None, rate=3):
+        """Initialize new Vegeta object
+
+        Only GET for now.
+
+        Args:
+            log_catcher (object: LogCatcher()): a LogCatcher instance that is
+                going to be used by the mock to store captured messages.
+        """
+        super().__init__(log_catcher)
+
+        self._cleanup_old_report_file()
+        self._setup_targets_file(target, jwt)
+
+        self._args = [self._VEGETA_BIN,
+                      "attack",  # !
+                      "-output", self._REPORT_FILE,
+                      "-targets", self._TARGETS_FILE,
+                      "-rate", str(rate),
+                      "-duration", "0",
+                      ]
+
+    @property
+    def _init_log_buf(self):
+        """Please check ManagedSubprocess'es class method description"""
+        return self.stdout_line_buffer
+
+    # Report handling was removed, it needs some more work. Please check commit
+    # history for details.

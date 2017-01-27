@@ -69,6 +69,15 @@ ENV PATH ${VENV_DIR}/bin:$PATH
 COPY ./requirements-tests.txt .
 RUN pip install -r requirements-tests.txt
 
+# Download Vegeta tool for benchmarking
+ENV VEGETA_DOWNLOAD_SHA256 2f0a69d0ae6f0bf268b7f655bd37c0104d5568d5b2bc45bbb2c405266f74e33d
+ENV VEGETA_DOWNLOAD_URL https://github.com/tsenart/vegeta/releases/download/v6.1.1/vegeta-v6.1.1-linux-amd64.tar.gz
+
+RUN curl -fsSL "$VEGETA_DOWNLOAD_URL" -o vegeta.tar.gz \
+    && echo "$VEGETA_DOWNLOAD_SHA256  vegeta.tar.gz" | sha256sum -c - \
+        && tar -C /usr/local/bin -xzf vegeta.tar.gz \
+        && rm vegeta.tar.gz
+
 # Compile AR, prepare it for running
 # This mimics the settings from dcos-image except for '--with-debug'
 RUN set -ex \
