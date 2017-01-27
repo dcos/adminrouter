@@ -11,7 +11,9 @@ def ping_mesos_agent(ar,
                      auth_header,
                      endpoint_id='http://127.0.0.2:15001',
                      expect_status=200,
-                     agent_id='de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1'):
+                     agent_id='de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1',
+                     timeout=60,
+                     ):
     """Test if agent is reachable or not
 
     Helper function meant to simplify checking mesos agent reachability/mesos
@@ -28,7 +30,10 @@ def ping_mesos_agent(ar,
     """
     url = ar.make_url_from_path('/agent/{}/blah/blah'.format(agent_id))
 
-    resp = requests.get(url, allow_redirects=False, headers=auth_header)
+    resp = requests.get(url,
+                        allow_redirects=False,
+                        headers=auth_header,
+                        timeout=timeout)
 
     assert resp.status_code == expect_status
     if expect_status == 200:
