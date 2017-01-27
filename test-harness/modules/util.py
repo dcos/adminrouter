@@ -22,14 +22,14 @@ LOG_LINE_SEARCH_INTERVAL = 0.2
 log = logging.getLogger(__name__)
 
 
-class GuardedAR():
-    """Context manager for AR instances
+class GuardedSubprocess():
+    """Context manager for Subproces instances
 
-       The purpose of this class is to provide reliable cleanup for all AR
-       instances no matter the tests results or errors.
+       The purpose of this class is to provide reliable cleanup for all Subprocess
+       class instances (AR & friends), no matter the tests results or errors.
 
        Using plain pytest fixture instead is difficult - some of the tests
-       need to control when exactly AR is started and stopped. The test-scoped
+       need to control when exactly i.e. AR is started and stopped. The test-scoped
        AR fixture would just start AR before running the test body and stop it
        right after it finishes.
 
@@ -37,14 +37,14 @@ class GuardedAR():
        context managers that work in some of the cases (__exit__ is not called).
        So for this reason we define one directly.
     """
-    def __init__(self, ar):
-        self._ar = ar
+    def __init__(self, subp):
+        self._subp = subp
 
     def __enter__(self):
-        self._ar.start()
+        self._subp.start()
 
     def __exit__(self, *_):
-        self._ar.stop()
+        self._subp.stop()
 
 
 class SearchCriteria:

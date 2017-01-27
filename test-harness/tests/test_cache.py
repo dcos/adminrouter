@@ -7,7 +7,7 @@ import time
 from generic_test_code import ping_mesos_agent
 from mocker.endpoints.mesos import EXTRA_SLAVE_DICT
 from runner.common import CACHE_FIRST_POLL_DELAY
-from util import LineBufferFilter, SearchCriteria, GuardedAR
+from util import LineBufferFilter, SearchCriteria, GuardedSubprocess
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class TestCache():
         # results.
         ar = nginx_class(cache_poll_period=60, cache_expiration=55)
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
@@ -78,7 +78,7 @@ class TestCache():
         # In total, we should get three cache updates in given time frame:
         timeout = CACHE_FIRST_POLL_DELAY + cache_poll_period * 2 + 1
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=timeout,
                                    line_buffer=ar.stderr_line_buffer)
@@ -121,7 +121,7 @@ class TestCache():
                          cache_poll_period=120,
                          cache_expiration=115)
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,
                                    line_buffer=ar.stderr_line_buffer)
@@ -164,7 +164,7 @@ class TestCache():
                             func_name='enable_nginx_task')
         url = ar.make_url_from_path('/service/nginx/foo/bar/')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Register Line buffer filter:
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,  # Just to give LBF enough time
@@ -216,7 +216,7 @@ class TestCache():
                             func_name='enable_nginx_task')
         url = ar.make_url_from_path('/service/nginx/foo/bar/')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Register Line buffer filter:
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,  # Just to give LBF enough time
@@ -263,7 +263,7 @@ class TestCache():
                          cache_max_age_hard_limit=4,
                          )
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Register Line buffer filter:
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,  # Just to give LBF enough time
@@ -305,7 +305,7 @@ class TestCache():
                          cache_max_age_hard_limit=1800,
                          )
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Register Line buffer filter:
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,  # Just to give LBF enough time
@@ -344,7 +344,7 @@ class TestCache():
 
         ar = nginx_class()
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
@@ -372,7 +372,7 @@ class TestCache():
         ar = nginx_class()
         url = ar.make_url_from_path('/service/nginx/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
@@ -394,7 +394,7 @@ class TestCache():
         ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
         url = ar.make_url_from_path('/service/nginx/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             resp = requests.get(url,
                                 allow_redirects=False,
                                 headers=valid_user_header)
@@ -420,7 +420,7 @@ class TestCache():
         cache_poll_period = 4
         ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             ping_mesos_agent(ar,
                              valid_user_header,
                              agent_id=EXTRA_SLAVE_DICT['id'],
@@ -446,7 +446,7 @@ class TestCache():
 
         url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # let's make sure that current leader is the default one
             resp = requests.get(url,
                                 allow_redirects=False,
@@ -479,7 +479,7 @@ class TestCache():
         ar = nginx_class()
         url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             resp = requests.get(url,
                                 allow_redirects=False,
                                 headers=valid_user_header)
@@ -493,7 +493,7 @@ class TestCache():
 
         ar = nginx_class()
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Let the cache warm-up:
             time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(3):
@@ -520,7 +520,7 @@ class TestCache():
         ar = nginx_class()
         url = ar.make_url_from_path('/service/nginx/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Let the cache warm-up:
             time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(5):
@@ -547,7 +547,7 @@ class TestCache():
         ar = nginx_class()
         url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             # Let the cache warm-up:
             time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(5):
@@ -576,7 +576,7 @@ class TestCache():
         ar = nginx_class()
         url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
 
-        with GuardedAR(ar):
+        with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
@@ -587,6 +587,3 @@ class TestCache():
 
         assert resp.status_code == 503
         assert lbf.extra_matches == {}
-
-# * awaria juz przy starcie, sprawdzenie czy podwojny fail przy pierwszym
-#   requescie jest obslugiwany
