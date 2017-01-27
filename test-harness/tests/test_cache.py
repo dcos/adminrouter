@@ -4,22 +4,12 @@ import logging
 import requests
 import time
 
-from util import LineBufferFilter, SearchCriteria, GuardedAR
-from runner.common import FIRST_POLL_DELAY
+from generic_test_code import ping_mesos_agent
 from mocker.endpoints.mesos import EXTRA_SLAVE_DICT
+from runner.common import CACHE_FIRST_POLL_DELAY
+from util import LineBufferFilter, SearchCriteria, GuardedAR
 
 log = logging.getLogger(__name__)
-
-
-def ping_agent_1(ar, jwt_data):
-    url = ar.make_url_from_path(
-        '/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/agent-1/blah/blah')
-
-    resp = requests.get(url, allow_redirects=False, headers=jwt_data)
-
-    assert resp.status_code == 200
-    req_data = resp.json()
-    assert req_data['endpoint_id'] == 'http://127.0.0.2:15001'
 
 
 class TestCache():
@@ -35,17 +25,17 @@ class TestCache():
         # Enable recording for marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                             func_name='record_requests')
-        # Enable recording for mesos
+        # Enable recording for Mesos
         mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                             func_name='record_requests')
 
         # Make regular polling occur later than usual, so that we get clear
         # results.
-        ar = nginx_class(poll_period=60, cache_expiry=55)
+        ar = nginx_class(cache_poll_period=60, cache_expiration=55)
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
+                                   timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             lbf.scan_log_buffer()
@@ -53,7 +43,7 @@ class TestCache():
             # Do a request that uses cache so that we can verify that data was
             # in fact cached and no more than one req to mesos/marathon
             # backends were made
-            ping_agent_1(ar, valid_user_header)
+            ping_mesos_agent(ar, valid_user_header)
 
         mesos_requests = mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                                              func_name='get_recorded_requests')
@@ -73,7 +63,7 @@ class TestCache():
             'Marathon apps cache has been successfully updated': SearchCriteria(3, True),
             'Marathon leader cache has been successfully updated': SearchCriteria(3, True),
             }
-        poll_period = 4
+        cache_poll_period = 4
 
         # Enable recording for marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
@@ -83,10 +73,10 @@ class TestCache():
                             func_name='record_requests')
 
         # Make regular polling occur faster than usual to speed up the tests.
-        ar = nginx_class(poll_period=poll_period, cache_expiry=3)
+        ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
 
         # In total, we should get three cache updates in given time frame:
-        timeout = FIRST_POLL_DELAY + poll_period * 2 + 1
+        timeout = CACHE_FIRST_POLL_DELAY + cache_poll_period * 2 + 1
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
@@ -98,7 +88,7 @@ class TestCache():
             # Do a request that uses cache so that we can verify that data was
             # in fact cached and no more than one req to mesos/marathon
             # backends were made
-            ping_agent_1(ar, valid_user_header)
+            ping_mesos_agent(ar, valid_user_header)
 
         mesos_requests = mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                                              func_name='get_recorded_requests')
@@ -114,7 +104,7 @@ class TestCache():
         """...right after Nginx has started."""
         filter_regexp = {
             'Executing cache refresh triggered by request': SearchCriteria(1, True),
-            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(4, True),
+            'Cache `[\s\w]+` empty. Fetching.': SearchCriteria(3, True),
             'Mesos state cache has been successfully updated': SearchCriteria(1, True),
             'Marathon apps cache has been successfully updated': SearchCriteria(1, True),
             'Marathon leader cache has been successfully updated': SearchCriteria(1, True),
@@ -127,22 +117,22 @@ class TestCache():
                             func_name='record_requests')
 
         # Make sure that timers will not interfere:
-        ar = nginx_class(first_poll_delay=120,
-                         poll_period=120,
-                         cache_expiry=115)
+        ar = nginx_class(cache_first_poll_delay=120,
+                         cache_poll_period=120,
+                         cache_expiration=115)
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
                                    timeout=5,
                                    line_buffer=ar.stderr_line_buffer)
 
-            ping_agent_1(ar, valid_user_header)
+            ping_mesos_agent(ar, valid_user_header)
             lbf.scan_log_buffer()
 
             # Do an extra request so that we can verify that data was in fact
             # cached and no more than one req to mesos/marathon backends were
             # made
-            ping_agent_1(ar, valid_user_header)
+            ping_mesos_agent(ar, valid_user_header)
 
         mesos_requests = mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                                              func_name='get_recorded_requests')
@@ -152,6 +142,192 @@ class TestCache():
         assert lbf.extra_matches == {}
         assert len(mesos_requests) == 1
         assert len(marathon_requests) == 2
+
+    def test_if_broken_marathon_causes_marathon_cache_to_expire_and_requests_to_fail(
+            self, nginx_class, mocker, valid_user_header):
+        filter_regexp = {
+            'Marathon app request failed: invalid response status: 500':
+                SearchCriteria(1, False),
+            'Mesos state cache has been successfully updated':
+                SearchCriteria(2, False),
+            'Cache entry `svcapps` is too old, aborting request':
+                SearchCriteria(1, True),
+        }
+
+        ar = nginx_class(cache_max_age_soft_limit=3,
+                         cache_max_age_hard_limit=4,
+                         cache_expiration=2,
+                         cache_poll_period=3,
+                         )
+
+        mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                            func_name='enable_nginx_task')
+        url = ar.make_url_from_path('/service/nginx/foo/bar/')
+
+        with GuardedAR(ar):
+            # Register Line buffer filter:
+            lbf = LineBufferFilter(filter_regexp,
+                                   timeout=5,  # Just to give LBF enough time
+                                   line_buffer=ar.stderr_line_buffer)
+
+            # Trigger cache update by issuing request:
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 200
+
+            # Break marathon
+            mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                                func_name='always_bork')
+
+            # Wait for the cache to be old enough to be discarded by AR:
+            # cache_max_age_hard_limit + 1s for good measure
+            # must be more than cache_poll_period
+            time.sleep(4 + 1)
+
+            # Perform the main/test request:
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 503
+
+            lbf.scan_log_buffer()
+
+        assert lbf.extra_matches == {}
+
+    def test_if_temp_marathon_borkage_does_not_disrupt_caching(
+            self, nginx_class, mocker, valid_user_header):
+        filter_regexp = {
+            'Marathon app request failed: invalid response status: 500':
+                SearchCriteria(1, False),
+            'Mesos state cache has been successfully updated':
+                SearchCriteria(2, False),
+            'Using stale `svcapps` cache entry to fulfill the request':
+                SearchCriteria(1, True),
+        }
+
+        ar = nginx_class(cache_max_age_soft_limit=3,
+                         cache_max_age_hard_limit=1200,
+                         cache_expiration=2,
+                         cache_poll_period=3,
+                         )
+
+        mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                            func_name='enable_nginx_task')
+        url = ar.make_url_from_path('/service/nginx/foo/bar/')
+
+        with GuardedAR(ar):
+            # Register Line buffer filter:
+            lbf = LineBufferFilter(filter_regexp,
+                                   timeout=5,  # Just to give LBF enough time
+                                   line_buffer=ar.stderr_line_buffer)
+
+            # Trigger cache update by issuing request:
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 200
+
+            # Break marathon
+            mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                                func_name='always_bork')
+
+            # Wait for the cache to be old enough to be considered stale by AR:
+            # cache_max_age_soft_limit + 1s for a good measure
+            time.sleep(3 + 1)
+
+            # Perform the main/test request:
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 200
+
+            lbf.scan_log_buffer()
+
+        assert lbf.extra_matches == {}
+
+    def test_if_broken_mesos_causes_mesos_cache_to_expire_and_requests_to_fail(
+            self, nginx_class, mocker, valid_user_header):
+        filter_regexp = {
+            'Mesos state request failed: invalid response status: 500':
+                SearchCriteria(1, False),
+            'Marathon apps cache has been successfully updated':
+                SearchCriteria(2, False),
+            'Cache entry `mesosstate` is too old, aborting request':
+                SearchCriteria(1, True),
+        }
+
+        ar = nginx_class(cache_poll_period=3,
+                         cache_expiration=2,
+                         cache_max_age_soft_limit=3,
+                         cache_max_age_hard_limit=4,
+                         )
+
+        with GuardedAR(ar):
+            # Register Line buffer filter:
+            lbf = LineBufferFilter(filter_regexp,
+                                   timeout=5,  # Just to give LBF enough time
+                                   line_buffer=ar.stderr_line_buffer)
+
+            # Trigger cache update using a request:
+            ping_mesos_agent(ar, valid_user_header)
+
+            # Break mesos
+            mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                                func_name='always_bork')
+
+            # Wait for the cache to be old enough to be discarded by AR:
+            # cache_max_age_hard_limit + 1s for good measure
+            # must be more than cache_poll_period
+            time.sleep(4 + 1)
+
+            # Perform the main/test request:
+            ping_mesos_agent(ar, valid_user_header, expect_status=503)
+
+            lbf.scan_log_buffer()
+
+        assert lbf.extra_matches == {}
+
+    def test_if_temp_mesos_borkage_does_not_dirupt_caching(
+            self, nginx_class, mocker, valid_user_header):
+        filter_regexp = {
+            'Mesos state request failed: invalid response status: 500':
+                SearchCriteria(1, False),
+            'Marathon apps cache has been successfully updated':
+                SearchCriteria(2, False),
+            'Using stale `mesosstate` cache entry to fulfill the request':
+                SearchCriteria(1, True),
+        }
+
+        ar = nginx_class(cache_poll_period=3,
+                         cache_expiration=2,
+                         cache_max_age_soft_limit=3,
+                         cache_max_age_hard_limit=1800,
+                         )
+
+        with GuardedAR(ar):
+            # Register Line buffer filter:
+            lbf = LineBufferFilter(filter_regexp,
+                                   timeout=5,  # Just to give LBF enough time
+                                   line_buffer=ar.stderr_line_buffer)
+
+            # Trigger cache update using a request:
+            ping_mesos_agent(ar, valid_user_header)
+
+            # Break mesos
+            mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                                func_name='always_bork')
+
+            # Wait for the cache to be old enough to become stale:
+            # cache_max_age_soft_limit + 1s for good measure
+            time.sleep(3 + 1)
+
+            # Perform the main/test request:
+            ping_mesos_agent(ar, valid_user_header, expect_status=200)
+
+            lbf.scan_log_buffer()
+
+        assert lbf.extra_matches == {}
 
     def test_if_broken_marathon_does_not_break_mesos_cache(
             self, nginx_class, mocker, valid_user_header):
@@ -167,80 +343,15 @@ class TestCache():
                             func_name='always_bork')
 
         ar = nginx_class()
-        url = ar.make_url_from_path(
-            '/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/agent-1/blah/blah')
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
+                                   timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
+            ping_mesos_agent(ar, valid_user_header)
             lbf.scan_log_buffer()
 
-        assert lbf.extra_matches == {}
-        assert resp.status_code == 200
-
-    def test_if_broken_marathon_breaks_marathon_cache(
-            self, nginx_class, mocker, valid_user_header):
-        filter_regexp = {
-            'Marathon app request failed: invalid response status: 500':
-                SearchCriteria(1, True),
-            'Mesos state cache has been successfully updated': SearchCriteria(1, True),
-            'Could not retrieve `[\s\w]+` cache entry': SearchCriteria(1, True),
-        }
-
-        # Break marathon
-        mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                            func_name='always_bork')
-
-        ar = nginx_class()
-        url = ar.make_url_from_path('/service/foo/bar/')
-
-        with GuardedAR(ar):
-            lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
-                                   line_buffer=ar.stderr_line_buffer)
-
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            lbf.scan_log_buffer()
-
-        assert resp.status_code == 503
-        assert lbf.extra_matches == {}
-
-    def test_if_broken_mesos_breaks_mesos_cache(
-            self, nginx_class, mocker, valid_user_header):
-        filter_regexp = {
-            'Mesos state request failed: invalid response status: 500':
-                SearchCriteria(1, True),
-            'Marathon apps cache has been successfully updated':
-                SearchCriteria(1, True),
-            'Could not retrieve `mesosstate` cache entry': SearchCriteria(1, True),
-        }
-
-        # Break mesos
-        mocker.send_command(endpoint_id='http://127.0.0.2:5050',
-                            func_name='always_bork')
-
-        ar = nginx_class()
-        url = ar.make_url_from_path(
-            '/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/agent-1/blah/blah')
-
-        with GuardedAR(ar):
-            lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
-                                   line_buffer=ar.stderr_line_buffer)
-
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            lbf.scan_log_buffer()
-
-        assert resp.status_code == 503
         assert lbf.extra_matches == {}
 
     def test_if_broken_mesos_does_not_break_marathon_cache(
@@ -263,7 +374,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
+                                   timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
 
             resp = requests.get(url,
@@ -279,8 +390,8 @@ class TestCache():
 
     def test_if_changing_marathon_apps_is_reflected_in_cache(
             self, nginx_class, valid_user_header, mocker):
-        poll_period = 4
-        ar = nginx_class(poll_period=poll_period, cache_expiry=3)
+        cache_poll_period = 4
+        ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
         url = ar.make_url_from_path('/service/nginx/bar/baz')
 
         with GuardedAR(ar):
@@ -292,7 +403,9 @@ class TestCache():
             mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                                 func_name='enable_nginx_task')
 
-            time.sleep(poll_period)
+            # First poll (2s) + normal poll interval(4s) < 2 * normal poll
+            # interval(4s)
+            time.sleep(cache_poll_period * 2)
 
             resp = requests.get(url,
                                 allow_redirects=False,
@@ -304,9 +417,67 @@ class TestCache():
 
     def test_if_changing_mesos_state_is_reflected_in_cache(
             self, nginx_class, valid_user_header, mocker):
-        poll_period = 4
-        ar = nginx_class(poll_period=poll_period, cache_expiry=3)
-        url = ar.make_url_from_path('/agent/' + EXTRA_SLAVE_DICT['id'] + '/foo/bar/')
+        cache_poll_period = 4
+        ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
+
+        with GuardedAR(ar):
+            ping_mesos_agent(ar,
+                             valid_user_header,
+                             agent_id=EXTRA_SLAVE_DICT['id'],
+                             expect_status=404)
+
+            mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                                func_name='enable_extra_slave')
+
+            # First poll (2s) + normal poll interval(4s) < 2 * normal poll
+            # interval(4s)
+            time.sleep(cache_poll_period * 2)
+
+            ping_mesos_agent(ar,
+                             valid_user_header,
+                             agent_id=EXTRA_SLAVE_DICT['id'],
+                             endpoint_id='http://127.0.0.4:15003')
+
+    def test_if_changing_marathon_leader_is_reflected_in_cache(
+            self, nginx_class, mocker, valid_user_header):
+
+        cache_poll_period = 4
+        ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
+
+        url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
+
+        with GuardedAR(ar):
+            # let's make sure that current leader is the default one
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 200
+            req_data = resp.json()
+            assert req_data['endpoint_id'] == 'http://127.0.0.2:80'
+
+            # change the leader and wait for cache to notice
+            mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                                func_name='change_leader')
+            # First poll (2s) + normal poll interval(4s) < 2 * normal poll
+            # interval(4s)
+            time.sleep(cache_poll_period * 2)
+
+            # now, let's see if the leader changed
+            resp = requests.get(url,
+                                allow_redirects=False,
+                                headers=valid_user_header)
+            assert resp.status_code == 200
+            req_data = resp.json()
+            assert req_data['endpoint_id'] == 'http://127.0.0.3:80'
+
+    def test_if_absence_of_marathon_leader_is_handled_by_cache(
+            self, nginx_class, mocker, valid_user_header):
+
+        mocker.send_command(endpoint_id='http://127.0.0.1:8080',
+                            func_name='remove_leader')
+
+        ar = nginx_class()
+        url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
 
         with GuardedAR(ar):
             resp = requests.get(url,
@@ -314,20 +485,7 @@ class TestCache():
                                 headers=valid_user_header)
             assert resp.status_code == 404
 
-            mocker.send_command(endpoint_id='http://127.0.0.2:5050',
-                                func_name='enable_extra_slave')
-
-            time.sleep(poll_period)
-
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            assert resp.status_code == 200
-
-        req_data = resp.json()
-        assert req_data['endpoint_id'] == 'http://127.0.0.4:15003'
-
-    def test_if_mesos_state_cache_works_at_all(
+    def test_if_caching_works_for_mesos_state(
             self, nginx_class, mocker, valid_user_header):
         # Enable recording for mesos
         mocker.send_command(endpoint_id='http://127.0.0.2:5050',
@@ -337,17 +495,17 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_DELAY + 1)
+            time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(3):
-                ping_agent_1(ar, valid_user_header)
+                ping_mesos_agent(ar, valid_user_header)
 
         mesos_requests = mocker.send_command(endpoint_id='http://127.0.0.2:5050',
                                              func_name='get_recorded_requests')
 
-        # 3 requests + only one upstream requst == cache works
+        # 3 requests + only one upstream request == cache works
         assert len(mesos_requests) == 1
 
-    def test_if_marathon_apps_cache_works_at_all(
+    def test_if_caching_works_for_marathon_apps(
             self, nginx_class, mocker, valid_user_header):
         # Enable recording for marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
@@ -364,7 +522,7 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_DELAY + 1)
+            time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(5):
                 resp = requests.get(url,
                                     allow_redirects=False,
@@ -391,7 +549,7 @@ class TestCache():
 
         with GuardedAR(ar):
             # Let the cache warm-up:
-            time.sleep(FIRST_POLL_DELAY + 1)
+            time.sleep(CACHE_FIRST_POLL_DELAY + 1)
             for _ in range(5):
                 resp = requests.get(url,
                                     allow_redirects=False,
@@ -403,53 +561,8 @@ class TestCache():
         marathon_requests = mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                                                 func_name='get_recorded_requests')
 
-        # 3 requests + only one upstream requst == cache works
+        # 3 requests + only one upstream request == cache works
         assert len(marathon_requests) == 2
-
-    def test_if_changing_marathon_leader_is_reflected_by_cache(
-            self, nginx_class, mocker, valid_user_header):
-
-        poll_period = 4
-        ar = nginx_class(poll_period=poll_period, cache_expiry=3)
-
-        url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
-
-        with GuardedAR(ar):
-            # let's make sure that current leader is the default one
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            assert resp.status_code == 200
-            req_data = resp.json()
-            assert req_data['endpoint_id'] == 'http://127.0.0.2:80'
-
-            # change the leader and wait for cache to notice
-            mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                                func_name='change_leader')
-            time.sleep(poll_period)
-
-            # now, let's see if the leader changed
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            assert resp.status_code == 200
-            req_data = resp.json()
-            assert req_data['endpoint_id'] == 'http://127.0.0.3:80'
-
-    def test_if_absence_of_marathon_leader_is_handled_by_cache(
-            self, nginx_class, mocker, valid_user_header):
-
-        mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                            func_name='remove_leader')
-
-        ar = nginx_class()
-        url = ar.make_url_from_path('/system/v1/leader/marathon/foo/bar/baz')
-
-        with GuardedAR(ar):
-            resp = requests.get(url,
-                                allow_redirects=False,
-                                headers=valid_user_header)
-            assert resp.status_code == 404
 
     def test_if_broken_response_from_marathon_is_handled(
             self, nginx_class, mocker, valid_user_header):
@@ -465,7 +578,7 @@ class TestCache():
 
         with GuardedAR(ar):
             lbf = LineBufferFilter(filter_regexp,
-                                   timeout=(FIRST_POLL_DELAY + 1),
+                                   timeout=(CACHE_FIRST_POLL_DELAY + 1),
                                    line_buffer=ar.stderr_line_buffer)
             resp = requests.get(url,
                                 allow_redirects=False,
@@ -475,4 +588,5 @@ class TestCache():
         assert resp.status_code == 503
         assert lbf.extra_matches == {}
 
-# * timing out of the request ?
+# * awaria juz przy starcie, sprawdzenie czy podwojny fail przy pierwszym
+#   requescie jest obslugiwany

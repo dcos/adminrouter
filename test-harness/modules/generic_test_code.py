@@ -7,6 +7,35 @@ import requests
 log = logging.getLogger(__name__)
 
 
+def ping_mesos_agent(ar,
+                     auth_header,
+                     endpoint_id='http://127.0.0.2:15001',
+                     expect_status=200,
+                     agent_id='de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1'):
+    """Test if agent is reachable or not
+
+    Helper function meant to simplify checking mesos agent reachability/mesos
+    agent related testing.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is invalid.
+        expect_status (int): HTTP status to expect
+        endpoint_id (str): if expect_status==200 - id of the endpoint that
+            should respoind to the request
+        agent_id (str): id of the agent to ping
+    """
+    url = ar.make_url_from_path('/agent/{}/blah/blah'.format(agent_id))
+
+    resp = requests.get(url, allow_redirects=False, headers=auth_header)
+
+    assert resp.status_code == expect_status
+    if expect_status == 200:
+        req_data = resp.json()
+        assert req_data['endpoint_id'] == endpoint_id
+
+
 def generic_unauthed_user_is_forbidden_test(ar, auth_header, path):
     """Test if unauthorized/unauthenticated user is forbidden access
 

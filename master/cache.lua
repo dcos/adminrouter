@@ -10,37 +10,32 @@ local _M = {}
 --
 -- Values assigned to these variable need to fufil following condidtion:
 --
--- CACHE_FIRST_POLL_DELAY_SECONDS << CACHE_EXPIRATION_SECONDS < CACHE_POLL_PERIOD_SECONDS
+-- CACHE_FIRST_POLL_DELAY << CACHE_EXPIRATION < CACHE_POLL_PERIOD < CACHE_MAX_AGE_SOFT_LIMIT < CACHE_MAX_AGE_HARD_LIMIT
 --
+-- CACHE_BACKEND_REQUEST_TIMEOUT << CACHE_REFRESH_LOCK_TIMEOUT
 --
-local CACHE_FIRST_POLL_DELAY_SECONDS = os.getenv("CACHE_FIRST_POLL_DELAY_SECONDS")
-if CACHE_FIRST_POLL_DELAY_SECONDS == nil then
-    CACHE_FIRST_POLL_DELAY_SECONDS = 2
-    ngx.log(ngx.DEBUG, "CACHE_FIRST_POLL_DELAY_SECONDS not set by ENV, using default")
-else
-    CACHE_FIRST_POLL_DELAY_SECONDS = tonumber(CACHE_FIRST_POLL_DELAY_SECONDS)
-    ngx.log(ngx.WARN,
-            "CACHE_FIRST_POLL_DELAY_SECONDS has been overridden by ENV to `" .. CACHE_FIRST_POLL_DELAY_SECONDS .. "`")
-end
+-- All are in units of seconds. Below are the defaults:
+local _CONFIG = {}
+local env_vars = {CACHE_FIRST_POLL_DELAY = 2,
+                  CACHE_POLL_PERIOD = 25,
+                  CACHE_EXPIRATION = 20,
+                  CACHE_MAX_AGE_SOFT_LIMIT = 35,
+                  CACHE_MAX_AGE_HARD_LIMIT = 259200,
+                  CACHE_BACKEND_REQUEST_TIMEOUT = 10,
+                  CACHE_REFRESH_LOCK_TIMEOUT = 20,
+                  }
 
-local CACHE_POLL_PERIOD_SECONDS = os.getenv("CACHE_POLL_PERIOD_SECONDS")
-if CACHE_POLL_PERIOD_SECONDS == nil then
-    CACHE_POLL_PERIOD_SECONDS = 25
-    ngx.log(ngx.DEBUG, "CACHE_POLL_PERIOD_SECONDS not set by ENV, using default")
-else
-    CACHE_POLL_PERIOD_SECONDS = tonumber(CACHE_POLL_PERIOD_SECONDS)
-    ngx.log(ngx.WARN,
-            "CACHE_POLL_PERIOD_SECONDS has been overridden by ENV to `" .. CACHE_POLL_PERIOD_SECONDS .. "`")
-end
-
-local CACHE_EXPIRATION_SECONDS = os.getenv("CACHE_EXPIRATION_SECONDS")
-if CACHE_EXPIRATION_SECONDS == nil then
-    CACHE_EXPIRATION_SECONDS = 20
-    ngx.log(ngx.DEBUG, "CACHE_EXPIRATION_SECONDS not set by ENV, using default")
-else
-    CACHE_EXPIRATION_SECONDS = tonumber(CACHE_EXPIRATION_SECONDS)
-    ngx.log(ngx.WARN,
-            "CACHE_EXPIRATION_SECONDS has been overridden by ENV to `" .. CACHE_EXPIRATION_SECONDS .. "`")
+for key, value in pairs(env_vars) do
+    -- yep, we are OK with key==nil, tonumber will just return nil
+    local env_var_val = tonumber(os.getenv(key))
+    if env_var_val == nil or env_var_val == value then
+        ngx.log(ngx.DEBUG, "Using default ".. key .. " value: `" .. value .. "` seconds")
+        _CONFIG[key] = value
+    else
+        ngx.log(ngx.NOTICE,
+                key .. " overridden by ENV to `" .. env_var_val .. "` seconds")
+        _CONFIG[key] = env_var_val
+    end
 end
 
 
@@ -69,7 +64,7 @@ local function request(host, port, path, accept_404_reply)
     local res, err = http.request(host, port,
         {
             path = path,
-            timeout = 10000,
+            timeout = _CONFIG.CACHE_BACKEND_REQUEST_TIMEOUT * 1000,
         }
     )
 
@@ -102,18 +97,12 @@ local function fetch_and_store_marathon_apps()
 
     if err then
         ngx.log(ngx.NOTICE, "Marathon app request failed: " .. err)
-        if not cache_data("svcapps", nil) then
-            ngx.log(ngx.ERR, "Invalidating Marathon apps cache failed")
-        end
         return
     end
 
     local apps, err = cjson_safe.decode(appsRes.body)
     if not apps then
-        ngx.log(ngx.NOTICE, "Cannot decode Marathon apps JSON: " .. err)
-        if not cache_data("svcapps", nil) then
-            ngx.log(ngx.ERR, "Invalidating Marathon apps cache failed")
-        end
+        ngx.log(ngx.WARN, "Cannot decode Marathon apps JSON: " .. err)
         return
     end
 
@@ -219,29 +208,27 @@ local function fetch_and_store_marathon_leader()
     local mleaderRes, err = request("127.0.0.1", 8080, "/v2/leader", true)
 
     if err then
-        ngx.log(ngx.NOTICE, "Marathon leader request failed: " .. err)
-        if not cache_data("marathonleader", nil) then
-            ngx.log(ngx.ERR, "Invalidating Marathon leader cache failed")
-        end
+        ngx.log(ngx.WARN, "Marathon leader request failed: " .. err)
         return
     end
 
+    -- We need to translate 404 reply into a JSON that is easy to process for
+    -- endpoints:
     -- https://mesosphere.github.io/marathon/docs/rest-api.html#get-v2-leader
+    local res_body
     if mleaderRes.status == 404 then
-        ngx.log(ngx.NOTICE, "Storing empty Marathon leader to SHM")
-        local empty_leader_json = '{"port": 0, "address": "not elected"}'
-        if not cache_data("marathonleader", empty_leader_json) then
-            ngx.log(ngx.ERR, "Storing Marathon leader cache failed")
-        end
-        return
+        -- Just a hack in order to avoid using gotos - create a substitute JSON
+        -- that can be parsed and processed by normal execution path and at the
+        -- same time passes the information of a missing Marathon leader.
+        ngx.log(ngx.NOTICE, "Using empty Marathon leader JSON")
+        res_body = '{"leader": "not elected:0"}'
+    else
+        res_body = mleaderRes.body
     end
 
-    local mleader, err = cjson_safe.decode(mleaderRes.body)
+    local mleader, err = cjson_safe.decode(res_body)
     if not mleader then
-        ngx.log(ngx.NOTICE, "Cannot decode Marathon leader JSON: " .. err)
-        if not cache_data("marathonleader", nil) then
-            ngx.log(ngx.ERR, "Invalidating Marathon leader cache failed")
-        end
+        ngx.log(ngx.WARN, "Cannot decode Marathon leader JSON: " .. err)
         return
     end
 
@@ -274,15 +261,12 @@ local function fetch_and_store_state_mesos()
 
     if err then
         ngx.log(ngx.NOTICE, "Mesos state request failed: " .. err)
-        if not cache_data("mesosstate", nil) then
-            ngx.log(ngx.ERR, "Invalidating Mesos state cache failed")
-        end
         return
     end
 
     ngx.log(ngx.DEBUG, "Storing Mesos state to SHM.")
     if not cache_data("mesosstate", mesosRes.body) then
-        ngx.log(ngx.ERR, "Storing mesos state cache failed")
+        ngx.log(ngx.WARN, "Storing mesos state cache failed")
         return
     end
 
@@ -297,23 +281,24 @@ end
 
 
 local function refresh_needed(ts_name)
+    -- ts_name (str): name of the '*_last_refresh' timestamp to check
     local cache = ngx.shared.cache
 
     local last_fetch_time = cache:get(ts_name)
-    -- Handle special case of first invocation.
+    -- Handle the special case of first invocation.
     if not last_fetch_time then
         ngx.log(ngx.INFO, "Cache `".. ts_name .. "` empty. Fetching.")
         return true
-    else
-        ngx.update_time()
-        local diff = ngx.now() - last_fetch_time
-        if diff > CACHE_EXPIRATION_SECONDS then
-            ngx.log(ngx.INFO, "Cache `".. ts_name .. "` expired. Refresh.")
-            return true
-        else
-            ngx.log(ngx.DEBUG, "Cache `".. ts_name .. "` populated and fresh. NOOP.")
-        end
     end
+
+    ngx.update_time()
+    local cache_age = ngx.now() - last_fetch_time
+    if cache_age > _CONFIG.CACHE_EXPIRATION then
+        ngx.log(ngx.INFO, "Cache `".. ts_name .. "` expired. Refresh.")
+        return true
+    end
+
+    ngx.log(ngx.DEBUG, "Cache `".. ts_name .. "` populated and fresh. NOOP.")
 
     return false
 end
@@ -343,12 +328,20 @@ local function refresh_cache(from_timer)
 
     -- Acquire lock.
     local lock
+    -- In order to avoid deadlocks, we are relying on `exptime` param of
+    -- resty.lock (https://github.com/openresty/lua-resty-lock#new)
+    --
+    -- It's value is maximum time it may take to fetch data from all the
+    -- backends (ATM 2xMarathon + Mesos) plus an arbitrary two seconds period
+    -- just to be on the safe side.
+    local lock_ttl = 3 * (_CONFIG.CACHE_BACKEND_REQUEST_TIMEOUT + 2)
+
     if from_timer then
         ngx.log(ngx.INFO, "Executing cache refresh triggered by timer")
         -- Fail immediately if another worker currently holds
         -- the lock, because a single timer-based update at any
         -- given time suffices.
-        lock = shmlock:new("shmlocks", { timeout=0 })
+        lock = shmlock:new("shmlocks", {timeout=0, exptime=lock_ttl})
         local elapsed, err = lock:lock("cache")
         if elapsed == nil then
             ngx.log(ngx.INFO, "Timer-based update is in progress. NOOP.")
@@ -359,7 +352,8 @@ local function refresh_cache(from_timer)
         -- Cache content is required for current request
         -- processing. Wait for lock acquisition, for at
         -- most 20 seconds.
-        lock = shmlock:new("shmlocks", { timeout=20 })
+        lock = shmlock:new("shmlocks", {timeout=_CONFIG.CACHE_REFRESH_LOCK_TIMEOUT,
+                                        exptime=lock_ttl })
         local elapsed, err = lock:lock("cache")
         if elapsed == nil then
             ngx.log(ngx.ERR, "Could not acquire lock: " .. err)
@@ -382,8 +376,8 @@ local function refresh_cache(from_timer)
 
     local ok, err = lock:unlock()
     if not ok then
-        -- If this fails, an unlock happens automatically,
-        -- by default after 30 seconds, to prevent deadlock.
+        -- If this fails, an unlock happens automatically via `exptime` lock
+        -- param described earlier.
         ngx.log(ngx.ERR, "Failed to unlock cache shmlock: " .. err)
     end
 end
@@ -410,7 +404,7 @@ function _M.periodically_refresh_cache()
         refresh_cache(true)
 
         -- Register new timer.
-        local ok, err = ngx.timer.at(CACHE_POLL_PERIOD_SECONDS, timerhandler)
+        local ok, err = ngx.timer.at(_CONFIG.CACHE_POLL_PERIOD, timerhandler)
         if not ok then
             ngx.log(ngx.ERR, "Failed to create timer: " .. err)
         else
@@ -418,11 +412,11 @@ function _M.periodically_refresh_cache()
         end
     end
 
-    -- Trigger initial timer, about CACHE_FIRST_POLL_DELAY_SECONDS seconds after
-    -- nginx startup.
-    local ok, err = ngx.timer.at(CACHE_FIRST_POLL_DELAY_SECONDS, timerhandler)
+    -- Trigger initial timer, about CACHE_FIRST_POLL_DELAY seconds after
+    -- Nginx startup.
+    local ok, err = ngx.timer.at(_CONFIG.CACHE_FIRST_POLL_DELAY, timerhandler)
     if not ok then
-        ngx.log(ngx.ERR, "failed to create timer: " .. err)
+        ngx.log(ngx.ERR, "Failed to create timer: " .. err)
         return
     else
         ngx.log(ngx.INFO, "Created initial recursive timer for cache updating.")
@@ -432,13 +426,40 @@ end
 
 function _M.get_cache_entry(name)
     local cache = ngx.shared.cache
-    if refresh_needed(name .. "_last_refresh") then
+    local name_last_refresh = name .. "_last_refresh"
+
+    -- Handle the special case of very early request - before the first
+    -- timer-based cache refresh
+    local entry_last_refresh = cache:get(name_last_refresh)
+    if entry_last_refresh == nil then
         refresh_cache()
+
+        entry_last_refresh = cache:get(name .. "_last_refresh")
+        if entry_last_refresh == nil then
+            -- Something is really broken, abort!
+            ngx.log(ngx.ERR, "Could not retrieve last refresh time for `" .. name .. "` cache entry")
+            return nil
+        end
+    end
+
+    -- Check the clock
+    ngx.update_time()
+    local cache_age = ngx.now() - entry_last_refresh
+
+    -- Cache is too old, we can't use it:
+    if cache_age > _CONFIG.CACHE_MAX_AGE_HARD_LIMIT then
+        ngx.log(ngx.ERR, "Cache entry `" .. name .. "` is too old, aborting request")
+        return nil
+    end
+
+    -- Cache is stale, but still usable:
+    if cache_age > _CONFIG.CACHE_MAX_AGE_SOFT_LIMIT then
+        ngx.log(ngx.NOTICE, "Using stale `" .. name .. "` cache entry to fulfill the request")
     end
 
     local entry_json = cache:get(name)
     if entry_json == nil then
-        ngx.log(ngx.ERR, "Could not retrieve `" .. name .. "` cache entry")
+        ngx.log(ngx.ERR, "Could not retrieve `" .. name .. "` cache entry from SHM")
         return nil
     end
 

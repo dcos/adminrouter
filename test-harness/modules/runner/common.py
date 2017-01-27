@@ -20,10 +20,14 @@ from util import LOG_LINE_SEARCH_INTERVAL
 
 log = logging.getLogger(__name__)
 
-# These reflect AR's cache production settings:
-FIRST_POLL_DELAY = 2
-POLL_PERIOD = 25
-CACHE_EXPIRY = 20
+# These reflect AR's cache production settings (in seconds):
+CACHE_FIRST_POLL_DELAY = 2
+CACHE_POLL_PERIOD = 25
+CACHE_EXPIRATION = 20
+CACHE_MAX_AGE_SOFT_LIMIT = 35
+CACHE_MAX_AGE_HARD_LIMIT = 259200  # 3 days * 24h * 60 minutes * 60 seconds
+CACHE_BACKEND_REQUEST_TIMEOUT = 10
+CACHE_REFRESH_LOCK_TIMEOUT = 20
 
 
 class SyslogMock():
@@ -671,9 +675,19 @@ class NginxBase(ManagedSubprocess):
                       '-g', 'daemon off;',
                       ]
 
-    def _set_ar_env(self, auth_enabled, default_scheme, upstream_mesos,
-                    upstream_marathon, first_poll_delay, poll_period,
-                    cache_expiry):
+    def _set_ar_env(self,
+                    auth_enabled,
+                    default_scheme,
+                    upstream_mesos,
+                    upstream_marathon,
+                    cache_first_poll_delay,
+                    cache_poll_period,
+                    cache_expiration,
+                    cache_max_age_soft_limit,
+                    cache_max_age_hard_limit,
+                    cache_backend_request_timeout,
+                    cache_refresh_lock_timeout,
+                    ):
         """Helper function used to determine Nginx env. variables
            basing on how the instance was configured
         """
@@ -682,9 +696,17 @@ class NginxBase(ManagedSubprocess):
         self._set_ar_env_from_val('DEFAULT_SCHEME', default_scheme)
         self._set_ar_env_from_val('UPSTREAM_MESOS', upstream_mesos)
         self._set_ar_env_from_val('UPSTREAM_MARATHON', upstream_marathon)
-        self._set_ar_env_from_val('CACHE_FIRST_POLL_DELAY_SECONDS', str(first_poll_delay))
-        self._set_ar_env_from_val('CACHE_POLL_PERIOD_SECONDS', str(poll_period))
-        self._set_ar_env_from_val('CACHE_EXPIRATION_SECONDS', str(cache_expiry))
+        self._set_ar_env_from_val('CACHE_FIRST_POLL_DELAY', str(cache_first_poll_delay))
+        self._set_ar_env_from_val('CACHE_POLL_PERIOD', str(cache_poll_period))
+        self._set_ar_env_from_val('CACHE_EXPIRATION', str(cache_expiration))
+        self._set_ar_env_from_val('CACHE_MAX_AGE_SOFT_LIMIT',
+                                  str(cache_max_age_soft_limit))
+        self._set_ar_env_from_val('CACHE_MAX_AGE_HARD_LIMIT',
+                                  str(cache_max_age_hard_limit))
+        self._set_ar_env_from_val('CACHE_BACKEND_REQUEST_TIMEOUT',
+                                  str(cache_backend_request_timeout))
+        self._set_ar_env_from_val('CACHE_REFRESH_LOCK_TIMEOUT',
+                                  str(cache_refresh_lock_timeout))
         self._set_ar_env_from_environment('AUTH_ERROR_PAGE_DIR_PATH')
 
     def __init__(self,
@@ -694,26 +716,45 @@ class NginxBase(ManagedSubprocess):
                  upstream_marathon="http://127.0.0.1:8443",
                  role="master",
                  log_catcher=None,
-                 first_poll_delay=FIRST_POLL_DELAY,
-                 poll_period=POLL_PERIOD,
-                 cache_expiry=CACHE_EXPIRY,
+                 cache_first_poll_delay=CACHE_FIRST_POLL_DELAY,
+                 cache_poll_period=CACHE_POLL_PERIOD,
+                 cache_expiration=CACHE_EXPIRATION,
+                 cache_max_age_soft_limit=CACHE_MAX_AGE_SOFT_LIMIT,
+                 cache_max_age_hard_limit=CACHE_MAX_AGE_HARD_LIMIT,
+                 cache_backend_request_timeout=CACHE_BACKEND_REQUEST_TIMEOUT,
+                 cache_refresh_lock_timeout=CACHE_REFRESH_LOCK_TIMEOUT,
                  ):
         """Initialize new Nginx instance
 
         Args:
-            auth_enabled (bool): translates to `ADMINROUTER_ACTIVATE_AUTH_MODULE`
-                env var
-            default_scheme (str): translates to `DEFAULT_SCHEME` env var
-            upstream_mesos (str): translates to `UPSTREAM_MESOS` env var
-            upstream_marathon (str): translates to `UPSTREAM_MARATHON` env var
             role ('master'|'agent'): the role of this Nginx instance - either
                 AR master or AR agent.
             log_catcher (object: LogCatcher()): a LogCatcher instance that is
                 going to be used by the mock to store captured messages.
-            first_poll_delay: time in seconds before Nginx start and first
-                cache refresh
-            poll_period: cache refresh time interval in seconds
-            cache_expiry: cache expiry time in seconds
+            auth_enabled (bool): translates to `ADMINROUTER_ACTIVATE_AUTH_MODULE`
+                env var
+            default_scheme (str),
+            upstream_mesos (str),
+            upstream_marathon (str),
+            cache_first_poll_delay (int),
+            cache_poll_period (int),
+            cache_backend_request_timeout (int),
+            CACHE_REFRESH_LOCK_TIMEOUT (int),
+            cache_expiration (int),
+            cache_max_age_soft_limit (int),
+            cache_max_age_hard_limit (int): translate to
+                `DEFAULT_SCHEME`,
+                `UPSTREAM_MESOS`,
+                `UPSTREAM_MARATHON`
+                `CACHE_FIRST_POLL_DELAY`,
+                `CACHE_POLL_PERIOD`,
+                `CACHE_EXPIRATION`,
+                `CACHE_BACKEND_REQUEST_TIMEOUT`,
+                `CACHE_REFRESH_LOCK_TIMEOUT`,
+                `CACHE_MAX_AGE_SOFT_LIMIT`,
+                `CACHE_MAX_AGE_HARD_LIMIT` env vars. Please check the documentation
+                and/or the source code and its comments for details.
+
         """
         assert role in ("master", "agent"), "wrong value of 'role' param"
         self._role = role
@@ -724,9 +765,13 @@ class NginxBase(ManagedSubprocess):
                          default_scheme,
                          upstream_mesos,
                          upstream_marathon,
-                         first_poll_delay,
-                         poll_period,
-                         cache_expiry,
+                         cache_first_poll_delay,
+                         cache_poll_period,
+                         cache_expiration,
+                         cache_max_age_soft_limit,
+                         cache_max_age_hard_limit,
+                         cache_backend_request_timeout,
+                         cache_refresh_lock_timeout,
                          )
         self._set_ar_cmdline()
 
