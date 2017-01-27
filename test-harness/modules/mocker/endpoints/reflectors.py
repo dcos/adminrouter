@@ -45,41 +45,6 @@ class ReflectingHTTPRequestHandler(BaseHTTPRequestHandler):
         blob = self._convert_data_to_blob(res)
         return blob
 
-    def _send_response(self, blob):
-        """Send response to the client as utf8 encoded JSON document.
-
-        Please refer to the description of the BaseHTTPRequestHandler class
-        for details on the arguments of this method.
-        """
-        ctx = self.server.context
-
-        with ctx.lock:
-            # Seems a bit overkill:
-            do_always_bork = ctx.data['always_bork']
-            do_always_redirect = ctx.data['always_redirect']
-            redirect_target = ctx.data['redirect_target']
-
-        if do_always_bork:
-            msg_fmt = "Endpoint `%s` sending broken response as requested"
-            log.debug(msg_fmt, ctx.data['endpoint_id'])
-            blob = b"Broken response due to `always_bork` flag being set"
-            self._finalize_request(500, 'text/plain; charset=utf-8', blob)
-            return
-
-        if do_always_redirect:
-            msg_fmt = "Endpoint `%s` sending redirect to `%s` as requested"
-            log.debug(msg_fmt, ctx.data['endpoint_id'], redirect_target)
-            headers = {"Location": redirect_target}
-            self._finalize_request(307,
-                                   'text/plain; charset=utf-8',
-                                   blob,
-                                   extra_headers=headers)
-            return
-
-        # No need to specify character encoding if type is json:
-        # http://stackoverflow.com/a/9254967
-        self._finalize_request(200, 'application/json', blob)
-
     def _parse_request_body(self):
         """Parse request body in order to extract arguments.
 

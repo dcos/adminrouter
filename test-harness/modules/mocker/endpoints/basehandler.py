@@ -8,6 +8,7 @@ import http.server
 import json
 import logging
 import socket
+import time
 import traceback
 
 from urllib.parse import parse_qs, urlparse
@@ -67,21 +68,56 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
         """
         pass
 
-    @abc.abstractmethod
-    def _send_response(self, blob):
-        """Send a response to the clients
+    def _process_commands(self, blob):
+        """Process all the endpoint configuration and execute things that
+           user requested.
 
-        Methods overriding it should send the response in a way suitable for
-        given base handler. For some it may be JSON, for others it may be just
-        a plain text.
+        Please check the Returns section to understand how chaining response
+        handling/overriding this method look like.
 
-        Raises:
-            EndpointException: This exception signalizes that the normal
-                processing of the request should be stopped, and the response
-                with given status&content-encoding&body should be immediately
-                sent.
+        Arguments:
+            blob (bytes array): data that is meant to be sent to the client.
+
+        Returns:
+            True/False depending on whether response was handled by this method
+            or not. Basing on it calling method determines if it should continue
+            processing data.
         """
-        pass
+        ctx = self.server.context
+
+        with ctx.lock:
+            do_always_bork = ctx.data['always_bork']
+
+            do_always_redirect = ctx.data['always_redirect']
+            redirect_target = ctx.data['redirect_target']
+
+            do_always_stall = ctx.data['always_stall']
+            stall_time = ctx.data['stall_time']
+
+        if do_always_stall:
+            msg_fmt = "Endpoint `%s` waiting `%f` seconds as requested"
+            log.debug(msg_fmt, ctx.data['endpoint_id'], stall_time)
+            time.sleep(stall_time)
+            # This does not end request processing
+
+        if do_always_bork:
+            msg_fmt = "Endpoint `%s` sending broken response as requested"
+            log.debug(msg_fmt, ctx.data['endpoint_id'])
+            blob = b"Broken response due to `always_bork` flag being set"
+            self._finalize_request(500, 'text/plain; charset=utf-8', blob)
+            return True
+
+        if do_always_redirect:
+            msg_fmt = "Endpoint `%s` sending redirect to `%s` as requested"
+            log.debug(msg_fmt, ctx.data['endpoint_id'], redirect_target)
+            headers = {"Location": redirect_target}
+            self._finalize_request(307,
+                                   'text/plain; charset=utf-8',
+                                   blob,
+                                   extra_headers=headers)
+            return True
+
+        return False
 
     def log_message(self, log_format, *args):
         """Just a patch to make Mockers Requests Handlers compatible with
@@ -190,7 +226,12 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
             blob = traceback.format_exc().encode('utf-8')
             self._finalize_request(500, 'text/plain; charset=utf-8', blob)
         else:
-            self._send_response(blob)
+            request_handled = self._process_commands(blob)
+
+            # No need to specify character encoding if type is json:
+            # http://stackoverflow.com/a/9254967
+            if not request_handled:
+                self._finalize_request(200, 'application/json', blob)
 
     def do_GET(self):
         """Please check the http.server.BaseHTTPRequestHandler documentation

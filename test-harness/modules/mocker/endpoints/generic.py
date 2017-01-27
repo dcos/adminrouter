@@ -90,6 +90,8 @@ class Endpoint(abc.ABC):
                         "endpoint_id": endpoint_id,
                         "always_redirect": False,
                         "redirect_target": None,
+                        "always_stall": False,
+                        "stall_time": 0,
                         }
         self._context = EndpointContext(initial_data)
 
@@ -127,8 +129,23 @@ class Endpoint(abc.ABC):
         # but let's be consistent
         with self._context.lock:
             self._context.data['always_bork'] = False
+
+            self._context.data['always_stall'] = False
+            self._context.data['stall_time'] = 0
+
             self._context.data["always_redirect"] = False
             self._context.data["redirect_target"] = None
+
+    def always_stall(self, aux_data=None):
+        """Make endpoint always wait given time before answering the request
+
+        Args:
+            aux_data (numeric): time in seconds, as acepted by time.sleep()
+                function
+        """
+        with self._context.lock:
+            self._context.data["always_stall"] = True
+            self._context.data["stall_time"] = aux_data
 
     def always_bork(self, aux_data=None):
         """Make endpoint always respond with an error
@@ -138,8 +155,7 @@ class Endpoint(abc.ABC):
                 method interface. See class description for details.
         """
         del aux_data
-        with self._context.lock:
-            self._context.data["always_bork"] = True
+        self._context.data["always_bork"] = True
 
     def always_redirect(self, aux_data=None):
         """Make endpoint always respond with a redirect
