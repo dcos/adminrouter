@@ -152,14 +152,18 @@ class BaseHTTPRequestHandler(http.server.BaseHTTPRequestHandler,
             blob (b''): data to send to the client in the body of the request
             extra_headers (dict): extra headers that should be set in the reply
         """
-        self.send_response(code)
-        self.send_header('Content-type', content_type)
-        if extra_headers is not None:
-            for name, val in extra_headers.items():
-                self.send_header(name, val)
-        self.end_headers()
+        try:
+            self.send_response(code)
+            self.send_header('Content-type', content_type)
+            if extra_headers is not None:
+                for name, val in extra_headers.items():
+                    self.send_header(name, val)
+            self.end_headers()
 
-        self.wfile.write(blob)
+            self.wfile.write(blob)
+        except BrokenPipeError:
+            log.warn("Client already closed the connection, "
+                     "aborting sending the response")
 
     @staticmethod
     def _convert_data_to_blob(data):
