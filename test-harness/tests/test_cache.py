@@ -178,7 +178,8 @@ class TestCache():
 
             # Break marathon
             mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                                func_name='always_bork')
+                                func_name='always_bork',
+                                aux_data=True)
 
             # Wait for the cache to be old enough to be discarded by AR:
             # cache_max_age_hard_limit + 1s for good measure
@@ -230,7 +231,8 @@ class TestCache():
 
             # Break marathon
             mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                                func_name='always_bork')
+                                func_name='always_bork',
+                                aux_data=True)
 
             # Wait for the cache to be old enough to be considered stale by AR:
             # cache_max_age_soft_limit + 1s for a good measure
@@ -274,7 +276,8 @@ class TestCache():
 
             # Break mesos
             mocker.send_command(endpoint_id='http://127.0.0.2:5050',
-                                func_name='always_bork')
+                                func_name='always_bork',
+                                aux_data=True)
 
             # Wait for the cache to be old enough to be discarded by AR:
             # cache_max_age_hard_limit + 1s for good measure
@@ -316,7 +319,8 @@ class TestCache():
 
             # Break mesos
             mocker.send_command(endpoint_id='http://127.0.0.2:5050',
-                                func_name='always_bork')
+                                func_name='always_bork',
+                                aux_data=True)
 
             # Wait for the cache to be old enough to become stale:
             # cache_max_age_soft_limit + 1s for good measure
@@ -340,7 +344,8 @@ class TestCache():
 
         # Break marathon
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
-                            func_name='always_bork')
+                            func_name='always_bork',
+                            aux_data=True)
 
         ar = nginx_class()
 
@@ -364,7 +369,8 @@ class TestCache():
 
         # Break marathon
         mocker.send_command(endpoint_id='http://127.0.0.2:5050',
-                            func_name='always_bork')
+                            func_name='always_bork',
+                            aux_data=True)
 
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                             func_name='enable_nginx_task')

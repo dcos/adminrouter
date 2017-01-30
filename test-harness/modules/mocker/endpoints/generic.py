@@ -147,15 +147,14 @@ class Endpoint(abc.ABC):
             self._context.data["always_stall"] = True
             self._context.data["stall_time"] = aux_data
 
-    def always_bork(self, aux_data=None):
+    def always_bork(self, aux_data=True):
         """Make endpoint always respond with an error
 
         Args:
-            aux_data (dict): unused, present only to satisfy the endpoint's
-                method interface. See class description for details.
+            aux_data (dict): True or False, depending whether endpoint should
+                always respond with errors or not.
         """
-        del aux_data
-        self._context.data["always_bork"] = True
+        self._context.data["always_bork"] = aux_data
 
     def always_redirect(self, aux_data=None):
         """Make endpoint always respond with a redirect
