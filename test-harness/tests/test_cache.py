@@ -593,3 +593,47 @@ class TestCache():
 
         assert resp.status_code == 503
         assert lbf.extra_matches == {}
+
+    def test_if_failed_request_triggered_update_is_recovered_by_timers(
+            self, nginx_class, valid_user_header, mocker, log_catcher):
+        # The idea here is to make Backend a bit slow, so that AR is still able
+        # to update cache on first request.
+
+        first_poll_delay = 3
+        poll_period = 3
+        cache_expiration = 2
+
+        # Take cache invalidation out of the picture
+        ar = nginx_class(cache_first_poll_delay=first_poll_delay,
+                         cache_poll_period=poll_period,
+                         cache_expiration=cache_expiration,
+                         cache_max_age_soft_limit=1200,
+                         cache_max_age_hard_limit=1800,
+                         )
+        # Make mesos just a bit :)
+        # It mus respond slower than backend_request_timeout
+        mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                            func_name='always_bork',
+                            aux_data=True)
+
+        with GuardedSubprocess(ar):
+            start = time.time()
+
+            # Let's break the cache by making it update against broken Mesos:
+            ping_mesos_agent(ar, valid_user_header, expect_status=503)
+
+            time.sleep(1)
+
+            # Let's make sure that the brokerage is still there
+            ping_mesos_agent(ar, valid_user_header, expect_status=503)
+
+            # Healing hands!
+            mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                                func_name='always_bork',
+                                aux_data=False)
+
+            # Let' wait for first poll to refresh cache
+            time.sleep(1 + (first_poll_delay - (time.time() - start)))
+
+            # Verify that the cache is OK now
+            ping_mesos_agent(ar, valid_user_header)
