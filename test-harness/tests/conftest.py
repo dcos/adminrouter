@@ -178,7 +178,7 @@ def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker_s):
         # used both in other fixtures and in tests directly. Liten link setup
         # fixture would have to be pulled in every time nginx_class is used
         # on its own.
-        ar_listen_link_setup(role)
+        ar_listen_link_setup(role, repo_is_ee)
         return Nginx(*args, role=role, log_catcher=log_catcher, **kwargs)
 
     return f

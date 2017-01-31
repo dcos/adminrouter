@@ -372,10 +372,15 @@ def setup_thread_debugger():
     signal.signal(signal.SIGUSR1, debug)  # Register handler
 
 
-def ar_listen_link_setup(role):
+def ar_listen_link_setup(role, is_ee):
     assert role in ['master', 'agent']
 
-    src_path = "/opt/mesosphere/etc/adminrouter-listen.conf"
+    if is_ee:
+        flavour = 'ee'
+    else:
+        flavour = 'open'
+
+    src_path = "/opt/mesosphere/etc/adminrouter-listen-{}.conf".format(flavour)
     dst_path = "adminrouter-listen-{}.conf".format(role)
 
     if os.path.exists(src_path):
