@@ -11,7 +11,7 @@ within the cluster.
 
 ## Service Endpoints
 
-Admin Router allows marathon tasks to define custom service UI and HTTP endpoints, which are made available via `<dcos-cluster>/services/<service-name>`. This can be achieved by setting the following marathon task labels:
+Admin Router allows Marathon tasks to define custom service UI and HTTP endpoints, which are made available via `<dcos-cluster>/service/<service-name>`. This can be achieved by setting the following Marathon task labels:
 
 ```
 "labels": {
@@ -21,16 +21,16 @@ Admin Router allows marathon tasks to define custom service UI and HTTP endpoint
   }
 ```
 
-In this case `http://<dcos-cluster>/services/service-name` would be forwarded to the host running the task using the first port allocated to the task.
+In this case `http://<dcos-cluster>/service/service-name` would be forwarded to the host running the task using the first port allocated to the task.
 
 In order for the forwarding to work reliably across task failures, we recommend co-locating the endpoints with the task. This way, if the task is restarted on a potentially other host and with different ports, Admin Router will pick up the new labels and update the routing. NOTE: Due to caching there might be an up to 30-second delay until the new routing is working.
 
 We would recommend having only a single task setting these labels for a given `service-name`.
-In the case of multiple task instances with the same `service-name` label, admin router will pick one of the tasks instances deterministically, but this might make debugging issues more difficult.
+In the case of multiple task instances with the same `service-name` label, Admin Router will pick one of the tasks instances deterministically, but this might make debugging issues more difficult.
 
 The endpoint should only use relative links for links and referenced assets such as .js and .css files. This is due to the fact, that the linked resources will be reachable only in their relative location `<dcos-cluster>/services/<service-name><link>`.
 
-Tasks running in nested [marathon app groups](https://mesosphere.github.io/marathon/docs/application-groups.html) will be available only using their service name (i.e, `<dcos-cluster>/services/<service-name>`) and not considering the marathon app group name (i.e., `<dcos-cluster>/services/app-group/<service-name>`).
+Tasks running in nested [Marathon app groups](https://mesosphere.github.io/marathon/docs/application-groups.html) will be available only using their service name (i.e, `<dcos-cluster>/service/<service-name>`) and not considering the marathon app group name (i.e., `<dcos-cluster>/service/app-group/<service-name>`).
 
 ## Testing
 
