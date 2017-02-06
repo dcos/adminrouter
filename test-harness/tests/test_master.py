@@ -78,13 +78,13 @@ class TestSystemLoggingAgentEndpoint():
                                                     endpoint,
                                                     prefix):
 
-        path_fmt = '/system/v1/agent/{}{}/foo/bar'
         # FIXME - these are very simple tests for now, need to think how to test
         # streaming api better. ATM we only test if HTTP is set to 1.1 for streaming
         # stuff.
+        uri_path = '/system/v1/agent/{}{}/foo/bar'.format(agent, prefix)
         generic_correct_upstream_dest_test(master_ar_process,
                                            valid_user_header,
-                                           path_fmt.format(agent, prefix),
+                                           uri_path,
                                            endpoint,
                                            )
 
