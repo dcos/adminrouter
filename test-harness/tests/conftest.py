@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """This module provides fixtures that are shared among all repository
@@ -126,6 +125,7 @@ def navstar_ips():
 
 @pytest.fixture(scope='session')
 def extra_lo_ips():
+    """Setup IPs that are used for simulating e.g. agent, mesos leader, etc.. """
     ips = ['127.0.0.2', '127.0.0.3']
 
     for ip in ips:
@@ -173,12 +173,12 @@ def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker_s):
     else:
         from runner.open import Nginx
 
-    def f(*args, role=None, **kwargs):
+    def f(*args, role="master", **kwargs):
         # We cannot define it as a fixture due to the fact that nginx_class is
         # used both in other fixtures and in tests directly. Liten link setup
         # fixture would have to be pulled in every time nginx_class is used
         # on its own.
-        ar_listen_link_setup(role)
+        ar_listen_link_setup(role, repo_is_ee)
         return Nginx(*args, role=role, log_catcher=log_catcher, **kwargs)
 
     return f

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """Mesos mock endpoint"""
@@ -280,5 +279,7 @@ class MesosEndpoint(RecordingTcpIpEndpoint):
             self._context.data["endpoint-content"] = copy.deepcopy(INITIAL_STATEJSON)
 
     def enable_extra_slave(self, *_):
+        """Change returned JSON to include extra slave - as if cluster had three
+        """
         with self._context.lock:
             self._context.data["endpoint-content"]["slaves"].append(EXTRA_SLAVE_DICT)

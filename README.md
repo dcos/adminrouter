@@ -41,10 +41,10 @@ features and control Nginx startup and termination.
 
 All the tests are executed in a Docker container which is controlled by the
 Makefile. Inside the container pytest command is started which in turn pulls
-in all the relevant fixtures, such as syslog mock, mocker (DC/OS endpoints
-mock), dns mock, etc... Finally, an Nginx is spawned using the configuration
+in all the relevant fixtures, such as Syslog mock, mocker (DC/OS endpoints
+mock), DNS mock, etc... Finally, an Nginx is spawned using the configuration
 bind-mounted from the developer's repository. Tests may launch Nginx multiple
-times, in different configuration, depending on what is needed. After the
+times, in different configurations, depending on what is needed. After the
 tests runner finishes, all the processes and the environment is cleaned up
 by pytest.
 
@@ -54,22 +54,22 @@ itself. If in doubt, it also may be very helpful to look for examples among
 existing tests.
 
 ### Quickstart
-In order to execute all the test, just issue:
+To execute all the tests, just issue:
 
 	make test
 
-In order have fine grained control over pytest command, execute:
+In order have fine-grained control over the pytest command, execute:
 
 	make shell
 
-This will launch an interactive environment inside the container that has all
-the dependencies installed. The developer may now launch the `pytest` command
-the way it's necessary, debug the environment and temporarily add/change
+This command will launch an interactive environment inside the container that
+has all the dependencies installed. The developer may now run the `pytest`
+command as need, debug the environment and temporarily add/change
 the dependencies.
 
 ### Makefile
 Makefile provides an easy way to start the testing environment without the need
-to worry about the correct docker commands. It's core concept is `adminrouter-devkit`
+to worry about the correct docker commands. Its core concept is `adminrouter-devkit`
 container which is contains all the dependencies that are needed to run
 Admin Router, and inside which all tests-related commands are run.
 
@@ -82,20 +82,19 @@ It exposes a couple of targets:
    exist yet.
 * `make update-devkit` - updates `adminrouter-devkit`. Should be run every time
    the Dockerfile or its dependencies change.
-* `make tests` - launch all the tests. Worth noting is the fact that mccabe
-  complexity of the code is also verified and an error is raised if it's equal
-  or above 10.
+* `make tests` - launch all the tests. Worth noting is the fact that McCabe
+   complexity of the code is also verified, and an error is raised if it's
+   equal to or above 10.
 * `make shell` - launch an interactive shell within the devkit container. Should
-  be used in case when fine grained control of the tests is necessary or
-  during debugging.
+  be used when fine grained control of the tests is necessary or during debugging.
 * `make flake8` - launch flake8 which will check all the tests and test-harness
   files by default.
 
 ### Docker container
 As mentioned earlier, all the commands are executed inside the `adminrouter-devkit`
 container. It follows the same build process for Nginx that happens during
-DC/OS build with the execption of setting the  `--with-debug` flag. It also
-contains some basic debugging tools, pytest related dependencies and basic
+DC/OS build with the exception of setting the  `--with-debug` flag. It also
+contains some basic debugging tools, pytest related dependencies and
 files that help pytest mimic the DC/OS environment. Their location is then
 exported via environment variables to the pytest code, so changing their location
 can be done by edition only the Dockerfile.
@@ -133,8 +132,8 @@ basically just a thin management layer on top of multiple python-based
 HTTP servers, each one of them mocking out particular component/upstream of DC/OS.
 
 It exposes the `.send_command()` method that allows to reconfigure endpoints
-the way the tests need it. It basically calls a getattr on the endpoint
-instance in order to execute given function and pass it attributes as specified
+the way the tests need it. It calls a getattr on the endpoint
+instance to execute the given function and pass it attributes as specified
 by the `.send_command()` call arguments. Please see the function signature in
 the file `test-harness/modules/mocker/common.py` for details.
 
@@ -158,8 +157,7 @@ they follow inheritance tree as below:
   sent to them, and then returning them through mockers `send_command` back to the
   tests code.
 * all remaining endpoints depicted in the hierarchy are not directly usable but
-  can be inherited from and extended if necessary in order to meet the
-  requirements of testing code.
+  can be inherited from and extended if necessary for the purposes of testing.
 
 Each endpoint has an id, that it basically it's http address (i.e.
 `http://127.0.0.1:8080` or `http:///run/dcos/dcos-metrics-agent.sock`). It's
@@ -199,31 +197,31 @@ has been created. It exposes two interfaces:
   while executing the context:
 
   ```
-    filter_string = 'validate_jwt_or_exit(): User not found: `{}`'.format(uid)
-    lbf = LineBufferFilter(filter_string,
-                            line_buffer=master_ar_process.stderr_line_buffer)
+    filter_regexp = 'validate_jwt_or_exit\(\): User not found: `{}`'.format(uid)
+    lbf = LineBufferFilter(filter_regexp,
+                           line_buffer=master_ar_process.stderr_line_buffer)
     with lbf:
         resp = requests.get(url,
                             allow_redirects=False,
                             headers=header)
-    assert lbf.log_line_found
+    assert lbf.all_found
 
   ```
 * `scan_log_buffer()` method that scans all the entries, since the subprocess
   start.
   ```
-    filter_string = 'Secret key not set or empty string.'
+    filter_regexp = 'Secret key not set or empty string.'
 
-    lbf = LineBufferFilter(filter_string,
-                            line_buffer=ar_process_without_secret_key.stderr_line_buffer)
+    lbf = LineBufferFilter(filter_regexp,
+                           line_buffer=ar_process_without_secret_key.stderr_line_buffer)
 
     lbf.scan_log_buffer()
 
-    assert lbf.log_line_found is True
+    assert lbf.all_found is True
 
   ```
-Separation of the log entries stemming from different instances of given
-Subprocess class in the logfile is done by placing following line in the log
+Separation of the log entries stemming from different instances of a given
+Subprocess class in the logfile is done by placing the following line in the log
 file:
 ```
 ✄✄✄✄✄✄✄✄✄✄ Logging of this instance ends here ✄✄✄✄✄✄✄✄✄✄
@@ -246,7 +244,7 @@ added to LogWatcher. LogWatcher itself takes care of draining data from it,
 with the line length limit hard-coded to 4096 bytes.
 
 ##### Nginx
-Nginx subprocess is different from others in regard to its lifetime. Pytest
+The Nginx subprocess is different from others in regard to its lifetime. Pytest
 fixture that pulls it into the test is module-scoped by default. If there is a
 need to have custom lifetime or just single-test scoped lifetime, then it's
 necessary to use `nginx_class` fixture instead of simple `master_ar_process` or

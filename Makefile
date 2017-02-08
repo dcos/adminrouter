@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
-SHM_SIZE := 256MB
 
 DEV_PATH := /usr/local/src
 
@@ -15,7 +14,6 @@ BRIDGE_IP := $(shell ip a sh dev $(BRIDGE_DEVNAME) | awk '/inet / {print $$2}' |
 # DNS_DOCKER_OPTS := --dns=8.8.8.8 --dns=8.8.4.4
 DNS_DOCKER_OPTS := --dns=$(BRIDGE_IP) --dns=8.8.8.8 --dns=8.8.4.4
 DEVKIT_COMMON_DOCKER_OPTS := --name adminrouter-devkit \
-	--shm-size $(SHM_SIZE) \
 	$(DNS_DOCKER_OPTS) \
 	-e PYTHONDONTWRITEBYTECODE=true \
 	-v $(DCOSAR_PYLIB_LOCAL_PATH):$(DCOSAR_PYLIB_CTR_MOUNT)
@@ -40,7 +38,6 @@ devkit:
 		echo "+ Building devkit image"; \
 		docker rmi -f mesosphere/adminrouter-devkit:latest; \
 		docker build \
-			--shm-size $(SHM_SIZE) \
 			--rm --force-rm \
 			-t \
 			mesosphere/adminrouter-devkit:latest ./docker/ ;\
@@ -49,7 +46,6 @@ devkit:
 .PHONY: update-devkit
 update-devkit: clean-devkit-container
 	docker build \
-		--shm-size $(SHM_SIZE) \
 		--rm --force-rm \
 		-t \
 		mesosphere/adminrouter-devkit:latest ./docker/ ;\

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """All the code relevant to recording endpoint used by mocker.
@@ -62,49 +61,24 @@ class RecordingHTTPRequestHandler(BaseHTTPRequestHandler):
 
         with ctx.lock:
             ctx.data['requests'].append(res)
-        msg_fmt = "Endpoint `%s` recorded a request: `%s`"
+        msg_fmt = "[Endpoint `%s`] Request recorded: `%s`"
         log.debug(msg_fmt, ctx.data['endpoint_id'], res)
 
-    def _send_response(self, blob):
-        """Send response to the client.
-
-        The method handles:
-          * sending broken response if tests requested it
-          * recording the request data if enabled
-          * sending the default/good response in all other cases.
+    def _process_commands(self, blob):
+        """Process all the endpoint configuration and execute things that
+           user requested.
 
         Please refer to the description of the BaseHTTPRequestHandler class
         for details on the arguments of this method.
         """
         ctx = self.server.context
-        with ctx.lock:
-            # Seems a bit overkill:
-            do_record_request = ctx.data["record_requests"]
-            do_always_bork = ctx.data['always_bork']
-            do_always_redirect = ctx.data['always_redirect']
-            redirect_target = ctx.data['redirect_target']
 
-        if do_record_request:
+        if ctx.data["record_requests"]:
             self._record_request()
+            # Recording does not end the request processing, so we do not
+            # return anything here
 
-        if do_always_bork:
-            msg_fmt = "Endpoint `%s` sending broken response as requested"
-            log.debug(msg_fmt, ctx.data['endpoint_id'])
-            blob = b"Broken response due to `always_bork` flag being set"
-            self._finalize_request(500, 'text/plain; charset=utf-8', blob)
-            return
-
-        if do_always_redirect:
-            msg_fmt = "Endpoint `%s` sending redirect to `%s` as requested"
-            log.debug(msg_fmt, ctx.data['endpoint_id'], redirect_target)
-            headers = {"Location": redirect_target}
-            self._finalize_request(307,
-                                   'text/plain; charset=utf-8',
-                                   blob,
-                                   extra_headers=headers)
-            return
-
-        self._finalize_request(200, 'application/json', blob)
+        return super()._process_commands(blob)
 
     @staticmethod
     def _parse_request_body():

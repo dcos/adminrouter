@@ -61,7 +61,6 @@ RUN set -ex \
 #   https://github.com/docker/docker/issues/12327#issuecomment-187158265
 RUN python3 -m pip install --upgrade virtualenv
 RUN set -ex \
-    && rmdir -v /tmp && ln -sv /dev/shm /tmp \
 	&& virtualenv --no-site-packages $VENV_DIR \
     && ${VENV_DIR}/bin/pip install --upgrade setuptools pip
 
@@ -69,6 +68,15 @@ ENV PATH ${VENV_DIR}/bin:$PATH
 
 COPY ./requirements-tests.txt .
 RUN pip install -r requirements-tests.txt
+
+# Download Vegeta tool for benchmarking
+ENV VEGETA_DOWNLOAD_SHA256 2f0a69d0ae6f0bf268b7f655bd37c0104d5568d5b2bc45bbb2c405266f74e33d
+ENV VEGETA_DOWNLOAD_URL https://github.com/tsenart/vegeta/releases/download/v6.1.1/vegeta-v6.1.1-linux-amd64.tar.gz
+
+RUN curl -fsSL "$VEGETA_DOWNLOAD_URL" -o vegeta.tar.gz \
+    && echo "$VEGETA_DOWNLOAD_SHA256  vegeta.tar.gz" | sha256sum -c - \
+        && tar -C /usr/local/bin -xzf vegeta.tar.gz \
+        && rm vegeta.tar.gz
 
 # Compile AR, prepare it for running
 # This mimics the settings from dcos-image except for '--with-debug'
@@ -109,10 +117,15 @@ ENV AUTH_ERROR_PAGE_DIR_PATH=${AR_BIN_DIR}/nginx/conf/errorpages
 COPY ./ca.crt /run/dcos/pki/CA/certs/ca.crt
 COPY ./adminrouter.crt /run/dcos/pki/tls/certs/adminrouter.crt
 COPY ./adminrouter.key /run/dcos/pki/tls/private/adminrouter.key
-COPY ./adminrouter-listen-master.conf /opt/mesosphere/etc/adminrouter-listen-master.conf
-COPY ./adminrouter-listen-agent.conf /opt/mesosphere/etc/adminrouter-listen-agent.conf
 COPY ./adminrouter-redirect-http-https.conf /opt/mesosphere/etc/adminrouter-redirect-http-https.conf
 COPY ./adminrouter-upstreams.conf /opt/mesosphere/etc/adminrouter-upstreams.conf
+
+# The contents of this file differ from the one that is shipped with DC/OS:
+# the IP addresses Nginx binds to are limited to only 127.0.0.1 instead of *.
+# The reason for it is that some endpoints need to listen on TCP port 80 due
+# to the way Nginx is configured.
+COPY ./adminrouter-listen-master.conf /opt/mesosphere/etc/adminrouter-listen-master.conf
+COPY ./adminrouter-listen-agent.conf /opt/mesosphere/etc/adminrouter-listen-agent.conf
 
 # dnsmasq stuff:
 COPY ./dnsmasq.conf /etc/dnsmasq.conf

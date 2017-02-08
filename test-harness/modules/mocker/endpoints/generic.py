@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """
@@ -91,6 +90,8 @@ class Endpoint(abc.ABC):
                         "endpoint_id": endpoint_id,
                         "always_redirect": False,
                         "redirect_target": None,
+                        "always_stall": False,
+                        "stall_time": 0,
                         }
         self._context = EndpointContext(initial_data)
 
@@ -103,6 +104,7 @@ class Endpoint(abc.ABC):
         """Start endpoint's threaded httpd server"""
         log.debug("Starting endpoint `%s`", self.id)
         self._httpd_thread.start()
+        self._httpd.startup_done.wait()
 
     def stop(self):
         """Perform cleanup of the endpoint threads
@@ -127,19 +129,32 @@ class Endpoint(abc.ABC):
         # but let's be consistent
         with self._context.lock:
             self._context.data['always_bork'] = False
+
+            self._context.data['always_stall'] = False
+            self._context.data['stall_time'] = 0
+
             self._context.data["always_redirect"] = False
             self._context.data["redirect_target"] = None
 
-    def always_bork(self, aux_data=None):
+    def always_stall(self, aux_data=None):
+        """Make endpoint always wait given time before answering the request
+
+        Args:
+            aux_data (numeric): time in seconds, as acepted by time.sleep()
+                function
+        """
+        with self._context.lock:
+            self._context.data["always_stall"] = True
+            self._context.data["stall_time"] = aux_data
+
+    def always_bork(self, aux_data=True):
         """Make endpoint always respond with an error
 
         Args:
-            aux_data (dict): unused, present only to satisfy the endpoint's
-                method interface. See class description for details.
+            aux_data (dict): True or False, depending whether endpoint should
+                always respond with errors or not.
         """
-        del aux_data
-        with self._context.lock:
-            self._context.data["always_bork"] = True
+        self._context.data["always_bork"] = aux_data
 
     def always_redirect(self, aux_data=None):
         """Make endpoint always respond with a redirect
@@ -167,7 +182,12 @@ class StatefullHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """
     def __init__(self, context, *args, **kw):
         self.context = context
+        self.startup_done = threading.Event()
         http.server.HTTPServer.__init__(self, *args, **kw)
+
+    def server_activate(self):
+        super().server_activate()
+        self.startup_done.set()
 
 
 class TcpIpHttpEndpoint(Endpoint):

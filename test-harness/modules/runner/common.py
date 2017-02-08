@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 """
@@ -20,6 +19,15 @@ from exceptions import LogSourceEmpty
 from util import LOG_LINE_SEARCH_INTERVAL
 
 log = logging.getLogger(__name__)
+
+# These reflect AR's cache production settings (in seconds):
+CACHE_FIRST_POLL_DELAY = 2
+CACHE_POLL_PERIOD = 25
+CACHE_EXPIRATION = 20
+CACHE_MAX_AGE_SOFT_LIMIT = 35
+CACHE_MAX_AGE_HARD_LIMIT = 259200  # 3 days * 24h * 60 minutes * 60 seconds
+CACHE_BACKEND_REQUEST_TIMEOUT = 10
+CACHE_REFRESH_LOCK_TIMEOUT = 20
 
 
 class SyslogMock():
@@ -158,16 +166,16 @@ class LogWriter():
             if event_type == select.POLLHUP:
                 raise LogSourceEmpty()
 
-    def __init__(self, fd, log_file, log_level=logging.INFO):
+    def __init__(self, fd, log_file, log_level=None):
         """Initialize new LogWriter instance
 
         Args:
             fd (obj: python file descriptor): file descriptor from which log
                 lines should be read.
-            log_file (str): if not None - log all the gathered log lines to
-                file at the given location
+            log_file (str): log all the gathered log lines to file at the
+                given location
             log_level (int): log level with which all the log lines should be
-                logged with
+                logged with, do not log to stdout if None
         """
         self._fd = fd
         self._log_level = log_level
@@ -205,7 +213,8 @@ class LogWriter():
 
         # yeah, we are guessing encoding here:
         line = line_bytes.decode('utf-8', errors='backslashreplace')
-        log.log(self._log_level, line)
+        if self._log_level is not None:
+            log.log(self._log_level, line)
         self._append_line_to_line_buffer(line)
 
     def _append_line_to_line_buffer(self, line):
@@ -312,7 +321,7 @@ class LogCatcher():
         self._logger_thread.start()
         log.info("LogCatcher thread has started")
 
-    def add_fd(self, fd, log_level=logging.INFO, log_file=None):
+    def add_fd(self, fd, log_file, log_level=None):
         """Begin handling new file descriptor
 
         This method adds given file descriptor to the set monitored by
@@ -324,7 +333,7 @@ class LogCatcher():
             log_file (str): if not None - log all the gathered log lines to
                 file at the given location
             log_level (int): log level with which all the log lines should be
-                logged with
+                logged with, do not log to stdout if None
         """
         assert fd.fileno() not in self._writers
 
@@ -488,8 +497,11 @@ class ManagedSubprocess(abc.ABC):
         self._INIT_COMPLETE_STR in one of log lines. If found, it is assumed
         that the process has finished init.
         """
-        # Not sure about making it @abstractproperty
-        assert self._INIT_COMPLETE_STR is not None
+        if self._INIT_COMPLETE_STR is None:
+            msg_fmt = ("Not waiting for process `%s` to start and assuming that"
+                       " it is already up")
+            log.warn(msg_fmt, self.id)
+            return True
 
         deadline = time.time() + self._START_TIMEOUT
         log_buf_pos = 0
@@ -666,8 +678,19 @@ class NginxBase(ManagedSubprocess):
                       '-g', 'daemon off;',
                       ]
 
-    def _set_ar_env(self, auth_enabled, default_scheme, upstream_mesos,
-                    upstream_marathon):
+    def _set_ar_env(self,
+                    auth_enabled,
+                    default_scheme,
+                    upstream_mesos,
+                    upstream_marathon,
+                    cache_first_poll_delay,
+                    cache_poll_period,
+                    cache_expiration,
+                    cache_max_age_soft_limit,
+                    cache_max_age_hard_limit,
+                    cache_backend_request_timeout,
+                    cache_refresh_lock_timeout,
+                    ):
         """Helper function used to determine Nginx env. variables
            basing on how the instance was configured
         """
@@ -676,36 +699,83 @@ class NginxBase(ManagedSubprocess):
         self._set_ar_env_from_val('DEFAULT_SCHEME', default_scheme)
         self._set_ar_env_from_val('UPSTREAM_MESOS', upstream_mesos)
         self._set_ar_env_from_val('UPSTREAM_MARATHON', upstream_marathon)
+        self._set_ar_env_from_val('CACHE_FIRST_POLL_DELAY', str(cache_first_poll_delay))
+        self._set_ar_env_from_val('CACHE_POLL_PERIOD', str(cache_poll_period))
+        self._set_ar_env_from_val('CACHE_EXPIRATION', str(cache_expiration))
+        self._set_ar_env_from_val('CACHE_MAX_AGE_SOFT_LIMIT',
+                                  str(cache_max_age_soft_limit))
+        self._set_ar_env_from_val('CACHE_MAX_AGE_HARD_LIMIT',
+                                  str(cache_max_age_hard_limit))
+        self._set_ar_env_from_val('CACHE_BACKEND_REQUEST_TIMEOUT',
+                                  str(cache_backend_request_timeout))
+        self._set_ar_env_from_val('CACHE_REFRESH_LOCK_TIMEOUT',
+                                  str(cache_refresh_lock_timeout))
         self._set_ar_env_from_environment('AUTH_ERROR_PAGE_DIR_PATH')
 
     def __init__(self,
                  auth_enabled=True,
                  default_scheme="http://",
-                 upstream_mesos="http://127.0.0.1:5050",
+                 upstream_mesos="http://127.0.0.2:5050",
                  upstream_marathon="http://127.0.0.1:8443",
                  role="master",
                  log_catcher=None,
+                 cache_first_poll_delay=CACHE_FIRST_POLL_DELAY,
+                 cache_poll_period=CACHE_POLL_PERIOD,
+                 cache_expiration=CACHE_EXPIRATION,
+                 cache_max_age_soft_limit=CACHE_MAX_AGE_SOFT_LIMIT,
+                 cache_max_age_hard_limit=CACHE_MAX_AGE_HARD_LIMIT,
+                 cache_backend_request_timeout=CACHE_BACKEND_REQUEST_TIMEOUT,
+                 cache_refresh_lock_timeout=CACHE_REFRESH_LOCK_TIMEOUT,
                  ):
         """Initialize new Nginx instance
 
         Args:
-            auth_enabled (bool): translates to `ADMINROUTER_ACTIVATE_AUTH_MODULE`
-                env var
-            default_scheme (str): translates to `DEFAULT_SCHEME` env var
-            upstream_mesos (str): translates to `UPSTREAM_MESOS` env var
-            upstream_marathon (str): translates to `UPSTREAM_MARATHON` env var
             role ('master'|'agent'): the role of this Nginx instance - either
                 AR master or AR agent.
             log_catcher (object: LogCatcher()): a LogCatcher instance that is
                 going to be used by the mock to store captured messages.
+            auth_enabled (bool): translates to `ADMINROUTER_ACTIVATE_AUTH_MODULE`
+                env var
+            default_scheme (str),
+            upstream_mesos (str),
+            upstream_marathon (str),
+            cache_first_poll_delay (int),
+            cache_poll_period (int),
+            cache_backend_request_timeout (int),
+            CACHE_REFRESH_LOCK_TIMEOUT (int),
+            cache_expiration (int),
+            cache_max_age_soft_limit (int),
+            cache_max_age_hard_limit (int): translate to
+                `DEFAULT_SCHEME`,
+                `UPSTREAM_MESOS`,
+                `UPSTREAM_MARATHON`
+                `CACHE_FIRST_POLL_DELAY`,
+                `CACHE_POLL_PERIOD`,
+                `CACHE_EXPIRATION`,
+                `CACHE_BACKEND_REQUEST_TIMEOUT`,
+                `CACHE_REFRESH_LOCK_TIMEOUT`,
+                `CACHE_MAX_AGE_SOFT_LIMIT`,
+                `CACHE_MAX_AGE_HARD_LIMIT` env vars. Please check the documentation
+                and/or the source code and its comments for details.
+
         """
         assert role in ("master", "agent"), "wrong value of 'role' param"
         self._role = role
 
         super().__init__(log_catcher)
 
-        self._set_ar_env(auth_enabled, default_scheme, upstream_mesos,
-                         upstream_marathon)
+        self._set_ar_env(auth_enabled,
+                         default_scheme,
+                         upstream_mesos,
+                         upstream_marathon,
+                         cache_first_poll_delay,
+                         cache_poll_period,
+                         cache_expiration,
+                         cache_max_age_soft_limit,
+                         cache_max_age_hard_limit,
+                         cache_backend_request_timeout,
+                         cache_refresh_lock_timeout,
+                         )
         self._set_ar_cmdline()
 
     def make_url_from_path(self, path='/exhibitor/some/path'):
@@ -724,3 +794,71 @@ class NginxBase(ManagedSubprocess):
             return base + path
 
         return base + path[1:]
+
+
+class Vegeta(ManagedSubprocess):
+    # Wait longer, give Vegeta more time to save report before SIGKILLing it
+    _EXIT_TIMEOUT = 15
+
+    # Disable waiting for confirmation that Vegeta started - it starts
+    # benchmark imediatelly without any stdout/stderr message
+    _INIT_COMPLETE_STR = None
+
+    _TARGETS_FILE = "/tmp/vegeta-targets.txt"
+    _REPORT_FILE = "/tmp/vegeta-report.bin"
+    _VEGETA_BIN = "/usr/local/bin/vegeta"
+
+    _results = None
+
+    def _register_stdout_stderr_to_logcatcher(self):
+        """Please check ManagedSubprocess'es class method description"""
+        log_filename = 'vegeta.stdout.log'
+        self._log_catcher.add_fd(self.stdout, log_file=log_filename)
+
+        log_filename = 'vegeta.stderr.log'
+        self._log_catcher.add_fd(self.stderr, log_file=log_filename)
+
+    def _cleanup_old_report_file(self):
+        try:
+            os.unlink(self._REPORT_FILE)
+        except OSError:
+            if os.path.exists(self._REPORT_FILE):
+                raise
+
+    def _setup_targets_file(self, target, jwt=None):
+        body = "GET {}\n".format(target)
+        if jwt is not None:
+            body += "Authorization: {}\n".format(jwt['Authorization'])
+
+        with open(self._TARGETS_FILE, 'w') as fh:
+            fh.write(body)
+
+    def __init__(self, log_catcher, target, jwt=None, rate=3):
+        """Initialize new Vegeta object
+
+        Only GET for now.
+
+        Args:
+            log_catcher (object: LogCatcher()): a LogCatcher instance that is
+                going to be used by the mock to store captured messages.
+        """
+        super().__init__(log_catcher)
+
+        self._cleanup_old_report_file()
+        self._setup_targets_file(target, jwt)
+
+        self._args = [self._VEGETA_BIN,
+                      "attack",  # !
+                      "-output", self._REPORT_FILE,
+                      "-targets", self._TARGETS_FILE,
+                      "-rate", str(rate),
+                      "-duration", "0",
+                      ]
+
+    @property
+    def _init_log_buf(self):
+        """Please check ManagedSubprocess'es class method description"""
+        return self.stdout_line_buffer
+
+    # Report handling was removed, it needs some more work. Please check commit
+    # history for details.
