@@ -4,7 +4,7 @@ local state = cache.get_cache_entry("mesosstate")
 
 if state == nil then
     ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-    ngx.say("503 Service Unavailable: invalid Mesos state.")
+    ngx.say("503 Service Unavailable: cache state is invalid")
     return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 

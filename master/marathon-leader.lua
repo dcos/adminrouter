@@ -3,7 +3,7 @@ local cache = require "master.cache"
 local mleader = cache.get_cache_entry("marathonleader")
 if mleader == nil then
     ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-    ngx.say("503 Service Unavailable: unable to obtain Marathon leader cache")
+    ngx.say("503 Service Unavailable: cache is invalid")
     return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 

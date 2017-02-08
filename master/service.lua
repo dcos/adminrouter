@@ -14,7 +14,7 @@ end
 local svcapps = cache.get_cache_entry("svcapps")
 if svcapps == nil then
     ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-    ngx.say("503 Service Unavailable: invalid Marathon service apps cache.")
+    ngx.say("503 Service Unavailable: cache state is invalid")
     return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 
