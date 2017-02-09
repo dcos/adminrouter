@@ -2,7 +2,9 @@
 
 @Library('sec_ci_libs') _
 
-if (env.BRANCH_NAME == "master") {
+def master_branches = ["master", ] as String[]
+
+if (master_branches.contains(env.BRANCH_NAME)) {
     // Rebuild main branch once a day
     properties([
         pipelineTriggers([cron('H H * * *')])
@@ -11,7 +13,7 @@ if (env.BRANCH_NAME == "master") {
 
 task_wrapper('mesos'){
     stage("Verify author") {
-        user_is_authorized()
+        user_is_authorized(master_branches)
     }
 
     stage('Cleanup workspace') {
