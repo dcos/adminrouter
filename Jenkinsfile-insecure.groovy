@@ -1,4 +1,4 @@
-stage('Prepare devkit and test containers') {
+stage('Prepare devkit container') {
     sh 'make update-devkit'
 }
 
@@ -12,7 +12,7 @@ try {
     }
 
 } finally {
-    stage('Cleanup docker containers'){
+    stage('Cleanup docker container'){
         sh 'make clean-containers'
         sh "docker rmi -f adminrouter-devkit || true"
     }
