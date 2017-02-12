@@ -716,7 +716,7 @@ class NginxBase(ManagedSubprocess):
                  auth_enabled=True,
                  default_scheme="http://",
                  upstream_mesos="http://127.0.0.2:5050",
-                 upstream_marathon="http://127.0.0.1:8443",
+                 upstream_marathon="http://127.0.0.1:8080",
                  role="master",
                  log_catcher=None,
                  cache_first_poll_delay=CACHE_FIRST_POLL_DELAY,
