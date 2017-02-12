@@ -69,7 +69,7 @@ class IamEndpoint(RecordingTcpIpEndpoint):
     Attributes:
         users: list of users defined in the mock by default.
     """
-    users = ["admin", "bozydar", "jadwiga"]
+    users = ["root", "bozydar", "jadwiga"]
 
     @staticmethod
     def _user_dict_from_uid(uid):

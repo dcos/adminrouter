@@ -246,6 +246,17 @@ def valid_jwt_generator(repo_is_ee):
 
 
 @pytest.fixture(scope='session')
+def superuser_user_header(valid_jwt_generator):
+    """This fixture further simplifies JWT handling by providing a ready-to-use
+    headers with a valid  superuser JSON Web Token for `requests` module to
+    use"""
+    token = valid_jwt_generator(uid='root')
+    header = {'Authorization': 'token={}'.format(token)}
+
+    return header
+
+
+@pytest.fixture(scope='session')
 def valid_user_header(valid_jwt_generator):
     """This fixture further simplifies JWT handling by providing a ready-to-use
     headers with a valid JSON Web Token for `requests` module to use"""
