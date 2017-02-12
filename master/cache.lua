@@ -8,7 +8,7 @@ local _M = {}
 -- In order to make caching code testable, these constants need to be
 -- configurable/exposed through env vars.
 --
--- Values assigned to these variable need to fufil following condidtion:
+-- Values assigned to these variable need to fufil following condition:
 --
 -- CACHE_FIRST_POLL_DELAY << CACHE_EXPIRATION < CACHE_POLL_PERIOD < CACHE_MAX_AGE_SOFT_LIMIT < CACHE_MAX_AGE_HARD_LIMIT
 --
@@ -58,11 +58,10 @@ end
 
 
 local function request(url, accept_404_reply)
-	local headers = {}
+    local headers = {}
 
     -- Use cosocket-based HTTP library, as ngx subrequests are not available
     -- from within this code path (decoupled from nginx' request processing).
-    -- The timeout parameter is given in milliseconds.
     -- The timeout parameter is given in milliseconds. The `request_uri`
     -- method takes care of parsing scheme, host, and port from the URL.
     local httpc = http.new()
@@ -85,7 +84,7 @@ local function request(url, accept_404_reply)
 
     ngx.log(
         ngx.NOTICE,
-        "Request url: " .. url ..
+        "Request url: " .. url .. " " ..
         "Response Body length: " .. string.len(res.body) .. " bytes."
         )
 
