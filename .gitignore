@@ -1,4 +1,4 @@
-*.swp
+*.sw?
 *.pyc
 .cache/*
 test-harness/logs/*.log
