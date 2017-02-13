@@ -75,11 +75,9 @@ class TestAgentEndpoint():
                                            'http://127.0.0.2:15001',
                                            )
 
-    # FIXME: not sure about this testcase:
-    # ("", "/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1"),
-    # should be accept this behaviour ?
     @pytest.mark.parametrize("path_given,path_expected",
                              [("/foo/bar", "/foo/bar"),
+                              ("", "/"),
                               ("/", "/"),
                               ])
     def test_if_upstream_request_is_correct(self,
