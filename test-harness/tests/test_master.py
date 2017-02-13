@@ -62,10 +62,11 @@ class TestExhibitorEndpoint():
                                              )
 
 
-class TestSystemLoggingAgentEndpoint():
-    @pytest.mark.parametrize("prefix", [(""),
-                                        ("/logs/v1"),
+class TestSystemAPIAgentProxing():
+    @pytest.mark.parametrize("prefix", [("/logs/v1"),
                                         ("/metrics/v0"),
+                                        ("/logs/v1/foo/bar"),
+                                        ("/metrics/v0/baz/baf"),
                                         ])
     @pytest.mark.parametrize("agent,endpoint", [
         ("de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1", 'http://127.0.0.2:61001'),
@@ -81,17 +82,16 @@ class TestSystemLoggingAgentEndpoint():
         # FIXME - these are very simple tests for now, need to think how to test
         # streaming api better. ATM we only test if HTTP is set to 1.1 for streaming
         # stuff.
-        uri_path = '/system/v1/agent/{}{}/foo/bar'.format(agent, prefix)
+        uri_path = '/system/v1/agent/{}{}'.format(agent, prefix)
         generic_correct_upstream_dest_test(master_ar_process,
                                            superuser_user_header,
                                            uri_path,
                                            endpoint,
                                            )
 
-    @pytest.mark.parametrize("prefix, http_ver", [("", 'HTTP/1.0'),
-                                                  ("/logs/v1", 'HTTP/1.1'),
-                                                  ("/metrics/v0", 'HTTP/1.0'),
-                                                  ])
+    @pytest.mark.parametrize("prefix", [("/logs/v1"),
+                                        ("/metrics/v0"),
+                                        ])
     @pytest.mark.parametrize("sent,expected", [('/foo/bar?key=value&var=num',
                                                 '/foo/bar?key=value&var=num'),
                                                ('/foo/bar/baz',
@@ -101,24 +101,22 @@ class TestSystemLoggingAgentEndpoint():
                                                ('',
                                                 ''),
                                                ])
-    def test_if_upstream_request_is_correct(self,
-                                            master_ar_process,
-                                            superuser_user_header,
-                                            sent,
-                                            expected,
-                                            prefix, http_ver):
-
+    def test_if_http_11_is_enabled(self,
+                                   master_ar_process,
+                                   superuser_user_header,
+                                   sent,
+                                   expected,
+                                   prefix):
         path_sent_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}{}'
         path_expected_fmt = '/system/v1{}{}'
         generic_correct_upstream_request_test(master_ar_process,
                                               superuser_user_header,
                                               path_sent_fmt.format(prefix, sent),
                                               path_expected_fmt.format(prefix, expected),
-                                              http_ver
+                                              'HTTP/1.1'
                                               )
 
-    @pytest.mark.parametrize("prefix", [(""),
-                                        ("/logs/v1"),
+    @pytest.mark.parametrize("prefix", [("/logs/v1"),
                                         ("/metrics/v0"),
                                         ])
     def test_if_upstream_headers_are_correct(self,
@@ -171,16 +169,13 @@ class TestSystemApiLeaderProxing():
                                                ('',
                                                 ''),
                                                ])
-    def test_if_upstream_request_is_correct(self,
-                                            master_ar_process,
-                                            superuser_user_header,
-                                            sent,
-                                            expected,
-                                            endpoint_type):
+    def test_if_http11_is_enabled(self,
+                                  master_ar_process,
+                                  superuser_user_header,
+                                  sent,
+                                  expected,
+                                  endpoint_type):
 
-        # FIXME - these are very simple tests for now, need to think how to test
-        # streaming api better. ATM we only test if HTTP is set to 1.1 for streaming
-        # stuff.
         path_sent = '/system/v1/leader/mesos' + sent
         path_expected = '/system/v1' + expected
         generic_correct_upstream_request_test(master_ar_process,
