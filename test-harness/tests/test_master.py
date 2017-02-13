@@ -7,16 +7,13 @@ from generic_test_code import (
     generic_correct_upstream_dest_test,
     generic_correct_upstream_request_test,
     generic_upstream_headers_verify_test,
+    generic_no_slash_redirect_test,
 )
 
 
 class TestExhibitorEndpoint():
-    def test_if_exhibitor_endpoint_redirects_req_without_slash(
-            self, master_ar_process):
-        url = master_ar_process.make_url_from_path("/exhibitor")
-        r = requests.get(url, allow_redirects=False)
-
-        assert r.status_code == 301
+    def test_redirect_req_without_slash(self, master_ar_process):
+        generic_no_slash_redirect_test(master_ar_process, '/exhibitor')
 
     def test_if_exhibitor_endpoint_handles_redirects_properly(
             self, master_ar_process, mocker, superuser_user_header):
@@ -59,6 +56,163 @@ class TestExhibitorEndpoint():
         generic_upstream_headers_verify_test(master_ar_process,
                                              superuser_user_header,
                                              '/exhibitor/some/path',
+                                             )
+
+
+agent_prefix = '/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1'
+
+
+class TestAgentEndpoint():
+    # FIXME: Figure out how we can test disable-request-response-buffering.conf
+
+    def test_if_request_is_sent_to_correct_upstream(self,
+                                                    master_ar_process,
+                                                    superuser_user_header):
+
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           superuser_user_header,
+                                           agent_prefix + "/foo/bar",
+                                           'http://127.0.0.2:15001',
+                                           )
+
+    # FIXME: not sure about this testcase:
+    # ("", "/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1"),
+    # should be accept this behaviour ?
+    @pytest.mark.parametrize("path_given,path_expected",
+                             [("/foo/bar", "/foo/bar"),
+                              ("/", "/"),
+                              ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            superuser_user_header,
+                                            path_given,
+                                            path_expected):
+
+        prefixed_pg = agent_prefix + path_given
+        generic_correct_upstream_request_test(master_ar_process,
+                                              superuser_user_header,
+                                              prefixed_pg,
+                                              path_expected,
+                                              http_ver="HTTP/1.1",
+                                              )
+
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             superuser_user_header):
+
+        path = '/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/logs/v1/foo/bar'
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             superuser_user_header,
+                                             path,
+                                             )
+
+
+class TestMetricsEndpoint():
+    def test_redirect_req_without_slash(self, master_ar_process):
+        generic_no_slash_redirect_test(master_ar_process, '/system/v1/metrics')
+
+    def test_if_request_is_sent_to_correct_upstream(self,
+                                                    master_ar_process,
+                                                    superuser_user_header):
+
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           superuser_user_header,
+                                           '/system/v1/metrics/foo/bar',
+                                           'http:///run/dcos/dcos-metrics-master.sock',
+                                           )
+
+    @pytest.mark.parametrize("path_given,path_expected",
+                             [("/system/v1/metrics/foo/bar", "/foo/bar"),
+                              ("/system/v1/metrics/", "/"),
+                              ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            superuser_user_header,
+                                            path_given,
+                                            path_expected):
+
+        generic_correct_upstream_request_test(master_ar_process,
+                                              superuser_user_header,
+                                              path_given,
+                                              path_expected,
+                                              )
+
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             superuser_user_header):
+
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             superuser_user_header,
+                                             '/system/v1/metrics/foo/bar',
+                                             )
+
+
+class TestLogsEndpoint():
+    def test_redirect_req_without_slash(self, master_ar_process):
+        generic_no_slash_redirect_test(master_ar_process, '/system/v1/logs/v1')
+
+    def test_if_request_is_sent_to_correct_upstream(self,
+                                                    master_ar_process,
+                                                    superuser_user_header):
+
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           superuser_user_header,
+                                           '/system/v1/logs/v1/foo/bar',
+                                           'http:///run/dcos/dcos-log.sock',
+                                           )
+
+    @pytest.mark.parametrize("path_given,path_expected",
+                             [("/system/v1/logs/v1/foo/bar", "/foo/bar"),
+                              ("/system/v1/logs/v1/", "/"),
+                              ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            superuser_user_header,
+                                            path_given,
+                                            path_expected):
+
+        generic_correct_upstream_request_test(master_ar_process,
+                                              superuser_user_header,
+                                              path_given,
+                                              path_expected,
+                                              http_ver="HTTP/1.1"
+                                              )
+
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             superuser_user_header):
+
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             superuser_user_header,
+                                             '/system/v1/logs/v1/foo/bar',
+                                             )
+
+
+class TestHealthEndpoint():
+    @pytest.mark.parametrize("path_given,path_expected",
+                             [("/system/health/v1/foo/bar", "/system/health/v1/foo/bar"),
+                              ("/system/health/v1/", "/system/health/v1/"),
+                              ("/system/health/v1", "/system/health/v1"),
+                              ])
+    def test_if_upstream_request_is_correct(self,
+                                            master_ar_process,
+                                            superuser_user_header,
+                                            path_given,
+                                            path_expected):
+
+        generic_correct_upstream_request_test(master_ar_process,
+                                              superuser_user_header,
+                                              path_given,
+                                              path_expected,
+                                              )
+
+    def test_if_upstream_headers_are_correct(self,
+                                             master_ar_process,
+                                             superuser_user_header):
+
+        generic_upstream_headers_verify_test(master_ar_process,
+                                             superuser_user_header,
+                                             '/system/health/v1/foo/bar',
                                              )
 
 

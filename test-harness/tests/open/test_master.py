@@ -13,79 +13,35 @@ from generic_test_code import (
 
 log = logging.getLogger(__name__)
 
-
-class TestExhibitorEndpointOpen():
-    def test_if_unknown_user_is_forbidden_access(self,
-                                                 master_ar_process,
-                                                 invalid_user_header):
-        generic_unauthed_user_is_forbidden_test(master_ar_process,
-                                                invalid_user_header,
-                                                '/exhibitor/some/path')
-
-    def test_if_valid_user_is_permitted_access(self,
-                                               master_ar_process,
-                                               valid_user_header):
-        generic_valid_user_is_permitted_test(master_ar_process,
-                                             valid_user_header,
-                                             '/exhibitor/some/path')
+authed_endpoints = ['/exhibitor',
+                    '/system/health/v1',
+                    '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/logs/v1'
+                    '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/metrics/v0'
+                    '/system/v1/leader/marathon',
+                    '/system/v1/leader/mesos',
+                    '/system/v1/logs/v1',
+                    '/system/v1/metrics',
+                    ]
 
 
-class TestSystemAPIAgentProxingAuth():
-    @pytest.mark.parametrize("path", [
-        ("/logs/v1"),
-        ("/metrics/v0"),
-    ])
+class TestAuthEnforcementOpen():
+    @pytest.mark.parametrize("path", authed_endpoints)
     def test_if_unknown_user_is_forbidden_access(self,
                                                  master_ar_process,
                                                  invalid_user_header,
                                                  path):
-        path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
         generic_unauthed_user_is_forbidden_test(master_ar_process,
                                                 invalid_user_header,
-                                                path_fmt.format(path),
-                                                )
+                                                path + "/foo/bar")
 
-    @pytest.mark.parametrize("path", [("/logs/v1"),
-                                      ("/metrics/v0"),
-                                      ])
+    @pytest.mark.parametrize("path", authed_endpoints)
     def test_if_valid_user_is_permitted_access(self,
                                                master_ar_process,
                                                valid_user_header,
                                                path):
-        path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
         generic_valid_user_is_permitted_test(master_ar_process,
                                              valid_user_header,
-                                             path_fmt.format(path),
-                                             )
-
-
-class TestSystemAPILeaderProxingAuth():
-    @pytest.mark.parametrize("path", [
-        ("marathon"),
-        ("mesos"),
-    ])
-    def test_if_unknown_user_is_forbidden_access(self,
-                                                 master_ar_process,
-                                                 invalid_user_header,
-                                                 path):
-        path_fmt = '/system/v1/leader/{}/foo/bar'
-        generic_unauthed_user_is_forbidden_test(master_ar_process,
-                                                invalid_user_header,
-                                                path_fmt.format(path),
-                                                )
-
-    @pytest.mark.parametrize("path", [("marathon"),
-                                      ("mesos"),
-                                      ])
-    def test_if_valid_user_is_permitted_access(self,
-                                               master_ar_process,
-                                               valid_user_header,
-                                               path):
-        path_fmt = '/system/v1/leader/{}/foo/bar'
-        generic_valid_user_is_permitted_test(master_ar_process,
-                                             valid_user_header,
-                                             path_fmt.format(path),
-                                             )
+                                             path + "/foo/bar")
 
 
 class TestAuthenticationOpen():
@@ -206,3 +162,15 @@ class TestAuthenticationOpen():
 
         assert resp.status_code == 401
         assert lbf.all_found
+
+
+class TestHealthEndpointOpen():
+    def test_if_request_is_sent_to_correct_upstream(self,
+                                                    master_ar_process,
+                                                    superuser_user_header):
+
+        generic_correct_upstream_dest_test(master_ar_process,
+                                           superuser_user_header,
+                                           '/system/health/v1/foo/bar',
+                                           'http://127.0.0.1:1050',
+                                           )

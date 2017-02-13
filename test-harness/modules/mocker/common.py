@@ -70,6 +70,10 @@ class MockerBase():
         # general purpose reflectors, used i.e. for Maratho leader testing
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=80))
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=80))
+        # metrics endpoint
+        res.append(ReflectingUnixSocketEndpoint('/run/dcos/dcos-metrics-master.sock'))
+        # log endpoint
+        res.append(ReflectingUnixSocketEndpoint('/run/dcos/dcos-log.sock'))
         # TODO - other endpoints common for all flavours go here...
 
         return res

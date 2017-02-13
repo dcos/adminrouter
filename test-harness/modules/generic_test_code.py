@@ -41,6 +41,22 @@ def ping_mesos_agent(ar,
         assert req_data['endpoint_id'] == endpoint_id
 
 
+def generic_no_slash_redirect_test(ar, path):
+    """Test if requrest for location without trailing slash is redirected
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        path (str): path for which request should be made
+    """
+    url = ar.make_url_from_path(path)
+    r = requests.get(url, allow_redirects=False)
+
+    assert r.status_code == 301
+
+
 def generic_unauthed_user_is_forbidden_test(ar, auth_header, path):
     """Test if unauthorized/unauthenticated user is forbidden access
 
