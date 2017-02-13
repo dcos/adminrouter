@@ -30,9 +30,8 @@ class TestExhibitorEndpointOpen():
                                              '/exhibitor/some/path')
 
 
-class TestOpenSystemLoggingAgentEndpoint():
+class TestSystemAPIAgentProxingAuth():
     @pytest.mark.parametrize("path", [
-        (""),
         ("/logs/v1"),
         ("/metrics/v0"),
     ])
@@ -54,6 +53,35 @@ class TestOpenSystemLoggingAgentEndpoint():
                                                valid_user_header,
                                                path):
         path_fmt = '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1{}/foo/bar'
+        generic_valid_user_is_permitted_test(master_ar_process,
+                                             valid_user_header,
+                                             path_fmt.format(path),
+                                             )
+
+
+class TestSystemAPILeaderProxingAuth():
+    @pytest.mark.parametrize("path", [
+        ("marathon"),
+        ("mesos"),
+    ])
+    def test_if_unknown_user_is_forbidden_access(self,
+                                                 master_ar_process,
+                                                 invalid_user_header,
+                                                 path):
+        path_fmt = '/system/v1/leader/{}/foo/bar'
+        generic_unauthed_user_is_forbidden_test(master_ar_process,
+                                                invalid_user_header,
+                                                path_fmt.format(path),
+                                                )
+
+    @pytest.mark.parametrize("path", [("marathon"),
+                                      ("mesos"),
+                                      ])
+    def test_if_valid_user_is_permitted_access(self,
+                                               master_ar_process,
+                                               valid_user_header,
+                                               path):
+        path_fmt = '/system/v1/leader/{}/foo/bar'
         generic_valid_user_is_permitted_test(master_ar_process,
                                              valid_user_header,
                                              path_fmt.format(path),
