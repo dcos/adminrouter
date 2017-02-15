@@ -42,7 +42,7 @@ def ping_mesos_agent(ar,
 
 
 def generic_no_slash_redirect_test(ar, path):
-    """Test if requrest for location without trailing slash is redirected
+    """Test if request for location without trailing slash is redirected
 
     Helper function meant to simplify writing multiple tests testing the
     same thing for different endpoints.
