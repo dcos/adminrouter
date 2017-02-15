@@ -55,6 +55,10 @@ class MockerBase():
         res.append(MesosEndpoint(ip='127.0.0.2', port=5050))
         # marathon
         res.append(MarathonEndpoint(ip='127.0.0.1', port=8080))
+        # cosmos
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=7070))
+        # navstar
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=62080))
         # slave1
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=15001))
         # slave2
@@ -67,7 +71,7 @@ class MockerBase():
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=61001))
         # task-nginx
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=16001))
-        # general purpose reflectors, used i.e. for Maratho leader testing
+        # general purpose reflectors, used i.e. for Marathon leader testing
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.2', port=80))
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.3', port=80))
         # metrics endpoint
