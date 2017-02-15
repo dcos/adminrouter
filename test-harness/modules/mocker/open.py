@@ -26,9 +26,6 @@ class Mocker(MockerBase):
         # Metrics(agent):
         extra_endpoints.append(
             ReflectingUnixSocketEndpoint(path='/run/dcos/dcos-metrics-agent.sock'))
-        # Cosmos:
-        extra_endpoints.append(
-            ReflectingTcpIpEndpoint(ip='127.0.0.1', port=7070))
         # DDDT:
         extra_endpoints.append(
             ReflectingTcpIpEndpoint(ip='127.0.0.1', port=1050))
