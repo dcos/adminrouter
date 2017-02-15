@@ -53,6 +53,8 @@ class MockerBase():
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=8181))
         # mesos
         res.append(MesosEndpoint(ip='127.0.0.2', port=5050))
+        # mesos non-leading master
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.5', port=5050))
         # marathon
         res.append(MarathonEndpoint(ip='127.0.0.1', port=8080))
         # cosmos

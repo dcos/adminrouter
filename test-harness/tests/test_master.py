@@ -2,6 +2,7 @@
 
 import pytest
 import requests
+from time import sleep
 
 from generic_test_code import (
     generic_correct_upstream_dest_test,
@@ -351,3 +352,36 @@ class TestSystemApiLeaderProxing():
                                              superuser_user_header,
                                              path_fmt.format(endpoint_type),
                                              )
+
+
+class TestNginxResolver:
+
+    def test_if_mesos_leader_is_resolved(self,
+                                         master_ar_process,
+                                         valid_user_header,
+                                         dns_server_mock,
+                                         ):
+        # Make a request that should be forwarded to Mesos leader instance
+        url = master_ar_process.make_url_from_path('/mesos/master/state-summary')
+
+        # Make sure that request was proxied to MesosEndpoint mock which returns
+        # data that looks like actual cluster state summary
+        r = requests.get(url, allow_redirects=True, headers=valid_user_header)
+        assert r.status_code == 200
+        assert r.json()["cluster"] == "prozlach-qzpz04t"
+
+        # See MockerBase::_create_common_endpoints() where we create ReflectingEndpoint
+        dns_server_mock.reply_with_leader_ip('127.0.0.5')
+        # The MesosLeaderDNSServer resolves leader.mesos with TTL=1s so its
+        # enough to wait for 2 seconds here
+        sleep(2)
+
+        # Make sure that second requeste was forwarded to new leader which is
+        # instance of ReflectingTcpIpEndpoint
+        r = requests.get(url, allow_redirects=True, headers=valid_user_header)
+        assert r.status_code == 200
+        assert r.json()["endpoint_id"] == "http://127.0.0.5:5050"
+
+        # Revert back to the original Mesos leader
+        dns_server_mock.reply_with_leader_ip('127.0.0.2')
+        sleep(2)

@@ -7,10 +7,10 @@ import os
 import pytest
 
 from runner.common import (
-    DNSMock,
     LogCatcher,
     SyslogMock,
     )
+from mocker.dns import MesosLeaderDNSServer
 from mocker.jwt import generate_rs256_jwt, generate_hs256_jwt
 from util import add_lo_ipaddr, del_lo_ipaddr, ar_listen_link_setup
 
@@ -95,32 +95,16 @@ def syslog_mock(log_catcher):
 
 
 @pytest.fixture(scope='session')
-def dns_mock(log_catcher, navstar_ips, resolvconf_fixup):
-    """Set-up DNS mocks, both for agent AR (port 53) and master AR (port 61053)"""
-    m_61053 = DNSMock(log_catcher, port=61053)
-    m_61053.start()
+def dns_server_mock():
+    s = MesosLeaderDNSServer(
+        server_address=('127.0.0.1', 61053),
+        leader_ip='127.0.0.2',
+        )
+    s.start()
 
-    m_53 = DNSMock(log_catcher, port=53)
-    m_53.start()
+    yield s
 
-    yield (m_53, m_61053)
-
-    m_61053.stop()
-    m_53.stop()
-
-
-@pytest.fixture(scope='session')
-def navstar_ips():
-    """Setup IPs that help dns_mock mimic navstar"""
-    ips = ['198.51.100.1', '198.51.100.2', '198.51.100.3']
-
-    for ip in ips:
-        add_lo_ipaddr(ip, 32)
-
-    yield
-
-    for ip in ips:
-        del_lo_ipaddr(ip, 32)
+    s.stop()
 
 
 @pytest.fixture(scope='session')
@@ -138,30 +122,7 @@ def extra_lo_ips():
 
 
 @pytest.fixture(scope='session')
-def resolvconf_fixup():
-    """Redirect all DNS request to local DNS mock
-
-    Docker's (1.12 ATM) functionality is quite limited when it comes to
-    /etc/resolv.conf manipulation: https://github.com/docker/docker/issues/1297
-
-    So the idea is to temporary change the resolv.conf contents during the
-    pytest run.
-    """
-
-    with open("/etc/resolv.conf", 'rb') as fh:
-        old = fh.read()
-
-    with open("/etc/resolv.conf", 'w') as fh:
-        fh.write("nameserver 127.0.0.1\n")
-
-    yield
-
-    with open("/etc/resolv.conf", 'wb') as fh:
-        fh.write(old)
-
-
-@pytest.fixture(scope='session')
-def nginx_class(repo_is_ee, dns_mock, log_catcher, syslog_mock, mocker_s):
+def nginx_class(repo_is_ee, dns_server_mock, log_catcher, syslog_mock, mocker_s):
     """Provide a Nginx class suitable for the repository flavour
 
     This fixture also binds together all the mocks (dns, syslog, mocker(endpoints),
