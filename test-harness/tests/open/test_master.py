@@ -7,7 +7,8 @@ import requests
 from mocker.endpoints.open.iam import IamEndpoint
 from util import LineBufferFilter
 from generic_test_code import (
-    generic_unauthed_user_is_forbidden_test,
+    generic_user_is_401_forbidden_test,
+    generic_correct_upstream_dest_test,
     generic_valid_user_is_permitted_test,
 )
 
@@ -30,9 +31,9 @@ class TestAuthEnforcementOpen():
                                                  master_ar_process,
                                                  invalid_user_header,
                                                  path):
-        generic_unauthed_user_is_forbidden_test(master_ar_process,
-                                                invalid_user_header,
-                                                path + "/foo/bar")
+        generic_user_is_401_forbidden_test(master_ar_process,
+                                           invalid_user_header,
+                                           path + "/foo/bar")
 
     @pytest.mark.parametrize("path", authed_endpoints)
     def test_if_valid_user_is_permitted_access(self,

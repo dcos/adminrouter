@@ -57,8 +57,8 @@ def generic_no_slash_redirect_test(ar, path):
     assert r.status_code == 301
 
 
-def generic_unauthed_user_is_forbidden_test(ar, auth_header, path):
-    """Test if unauthorized/unauthenticated user is forbidden access
+def generic_user_is_401_forbidden_test(ar, auth_header, path):
+    """Test if unauthorized/unauthenticated user is getting 401 access denied
 
     Helper function meant to simplify writing multiple tests testing the
     same thing for different endpoints.
@@ -75,6 +75,26 @@ def generic_unauthed_user_is_forbidden_test(ar, auth_header, path):
                         headers=auth_header)
 
     assert resp.status_code == 401
+
+
+def generic_user_is_403_forbidden_test(ar, auth_header, path):
+    """Test if unauthorized/unauthenticated user is getting 403 access denied
+
+    Helper function meant to simplify writing multiple tests testing the
+    same thing for different endpoints.
+
+    Arguments:
+        ar: Admin Router object, an instance of runner.(ee|open).Nginx
+        auth_header (dict): headers dict that contains JWT. The auth data it
+            contains is invalid.
+        path (str): path for which request should be made
+    """
+    url = ar.make_url_from_path(path)
+    resp = requests.get(url,
+                        allow_redirects=False,
+                        headers=auth_header)
+
+    assert resp.status_code == 403
 
 
 def generic_valid_user_is_permitted_test(ar, auth_header, path):
