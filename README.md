@@ -32,6 +32,34 @@ The endpoint should only use relative links for links and referenced assets such
 
 Tasks running in nested [Marathon app groups](https://mesosphere.github.io/marathon/docs/application-groups.html) will be available only using their service name (i.e, `<dcos-cluster>/service/<service-name>`) and not considering the marathon app group name (i.e., `<dcos-cluster>/service/app-group/<service-name>`).
 
+## DNS resolution
+
+Some of the AR configuration depends on a correct DNS resolution of the current
+Mesos leader instance. NGINX comes with own DNS resolver component that can
+be configured to resolve names from particular DNS server. The configuration
+referes to leading instance with a name `leader.mesos` and it expects that a
+DNS server used as a resolver backed resolves the name to correct leading Mesos
+master IP address.
+
+Open source version of NGINX doesn't support periodic DNS resolution of
+upstream servers. There is a workaround that AR uses to overcome this
+limitation. The workaround relies on fact that re-resolves any URL in a
+[`proxy_pass`](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) configuration directive that comes from a
+[variable](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set).
+NGINX resolver respects DNS response TTL flags on each record so the resolve
+results are cached for period controlled by a upstream DNS server.
+
+AR currently uses a `mesos-dns` as a DNS server backend and it expects the
+server to run on a port `61053` and respond at least to `leader.mesos` - `A`
+type query.
+
+Related links:
+
+* http://serverfault.com/questions/240476/how-to-force-nginx-to-resolve-dns-of-a-dynamic-hostname-everytime-when-doing-p
+* https://www.jethrocarr.com/2013/11/02/nginx-reverse-proxies-and-dns-resolution/
+
+Internal reference: `DCOS-5809`.
+
 ## Testing
 
 Admin Router repository includes a test harness that is meant to make
@@ -166,13 +194,19 @@ and `.stop()` methods during the start and stop of mocker instance
 respectively. Each endpoint can be set to respond to each and every request
 with an error (`500 Internal server error`).
 
-#### Subprocess management
-Pytest fixtures start a couple of subprocesses:
-* two dnsmasq instances
-* Admin Router itself
+#### DNS mock
 
-These do not always log to stderr/stdout, so a very simple syslog mock is also
-provided. All the stdouts and stderrs are piped into the central log
+The AR requires a working DNS server that responds correctly to
+`leader.mesos` - `A` type query and resolves current Mesos leader instance.
+Mocking library comes with a simple DNS in-memory programmable server that
+can be used to mock various DNS query responses and also to simulate leader
+instance changes.
+
+#### Subprocess management
+Pytest fixtures start an `Admin Router` subprocess.
+
+The subprocess doesn't always log to stderr/stdout, so a very simple syslog mock
+is also provided. All the stdouts and stderrs are piped into the central log
 processing class LogCatcher.
 
 ##### LogCatcher
@@ -184,12 +218,12 @@ all the sources for new information and push it into:
 * internal buffer which can be used by tests for logging-based testing
 
 The internal buffer is available through
-`stdout_line_buffer`/`stderr_line_buffer` methods of AR object, Syslog
-object(available through a fixture), and dnsmasq processes (also through
-fixture). The buffer itself is implemented as a plain python list where each
-log line represents a single entry. This list is shared across all the objects
-that are groking the buffer, and there is no extra protection from manipulating
-it from within tests so extra care needs to be taken.
+`stdout_line_buffer`/`stderr_line_buffer` methods of AR object and Syslog
+object(available through a fixture). The buffer itself is implemented as a
+plain python list where each log line represents a single entry. This list is
+shared across all the objects that are groking the buffer, and there is no
+extra protection from manipulating it from within tests so extra care needs
+to be taken.
 
 In order to simplify handling of the log lines buffers, `LineBufferFilter` class
 has been created. It exposes two interfaces:
@@ -227,16 +261,6 @@ file:
 ✄✄✄✄✄✄✄✄✄✄ Logging of this instance ends here ✄✄✄✄✄✄✄✄✄✄
 
 ```
-
-##### DNS mock
-It's easier to launch dnsmasq process that will serve a static entries from a
-`/etc/hosts.dnsmasq` file than to write a fully conforming dns server in python.
-All the entries in this file point to localhost where appropriately configured
-endpoints are listening for connections, even though in real DC/OS instance
-they would point to a different server/IP address.
-
-Dnsmasq processes log all the requests to stdout which in turn is pushed into
-LogCatcher instance.
 
 ##### Syslog mock
 Syslog mock is a very simple Python hack - a DGRAM Unix Socket is created and

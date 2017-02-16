@@ -40,7 +40,6 @@ RUN set -ex \
 RUN set -ex \
     && bash -x -c 'for i in {1..5}; do apt-get update && break || sleep 2; done' \
     && apt-get install -y --no-install-recommends \
-        dnsmasq \
         gcc \
         libdigest-sha-perl \
         libffi-dev \
@@ -126,15 +125,6 @@ COPY ./adminrouter-upstreams.conf /opt/mesosphere/etc/adminrouter-upstreams.conf
 # to the way Nginx is configured.
 COPY ./adminrouter-listen-master.conf /opt/mesosphere/etc/adminrouter-listen-master.conf
 COPY ./adminrouter-listen-agent.conf /opt/mesosphere/etc/adminrouter-listen-agent.conf
-
-# dnsmasq stuff:
-COPY ./dnsmasq.conf /etc/dnsmasq.conf
-# In case if Docker someday decides to solve:
-# https://github.com/docker/docker/issues/1297
-# and container's /etc/resolv.conf becomes visible and not bind-mounted.
-RUN echo "nameserver 127.0.0.1" > /etc/resolv.conf
-RUN echo "nameserver 8.8.8.8\nnameserver 8.8.4.4\n" > /etc/resolv.conf.dnsmasq
-COPY ./hosts.dnsmasq /etc/hosts.dnsmasq
 
 WORKDIR $AR_CONF_DIR
 

@@ -95,7 +95,7 @@ def syslog_mock(log_catcher):
 
 
 @pytest.fixture(scope='session')
-def dns_server_mock():
+def dns_server_mock_s():
     s = MesosLeaderDNSServer(
         server_address=('127.0.0.1', 61053),
         leader_ip='127.0.0.2',
@@ -105,6 +105,36 @@ def dns_server_mock():
     yield s
 
     s.stop()
+
+
+@pytest.fixture(scope='function')
+def dns_server_mock(dns_server_mock_s):
+    """An extension to `dns_server_mock_s` fixture that adds resetting the mock
+    to initial state after each test.
+
+    The division stems from the fact that server instance should be created
+    only once per session, while it must be reset after every test to it's
+    initial state
+    """
+    yield dns_server_mock_s
+
+    dns_server_mock_s.reset()
+
+
+@pytest.fixture(scope='session')
+def navstar_ips():
+    """Setup IPs that are used in agent config as DNS resolver.
+
+    These IPs are mimicking navstar service"""
+    ips = ['198.51.100.1', '198.51.100.2', '198.51.100.3']
+
+    for ip in ips:
+        add_lo_ipaddr(ip, 32)
+
+    yield
+
+    for ip in ips:
+        del_lo_ipaddr(ip, 32)
 
 
 @pytest.fixture(scope='session')
@@ -122,7 +152,13 @@ def extra_lo_ips():
 
 
 @pytest.fixture(scope='session')
-def nginx_class(repo_is_ee, dns_server_mock, log_catcher, syslog_mock, mocker_s):
+def nginx_class(
+        repo_is_ee,
+        dns_server_mock_s,
+        log_catcher,
+        syslog_mock,
+        mocker_s,
+        navstar_ips):
     """Provide a Nginx class suitable for the repository flavour
 
     This fixture also binds together all the mocks (dns, syslog, mocker(endpoints),

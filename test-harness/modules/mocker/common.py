@@ -53,8 +53,11 @@ class MockerBase():
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.1', port=8181))
         # mesos
         res.append(MesosEndpoint(ip='127.0.0.2', port=5050))
-        # mesos non-leading master
+        # additional mesos instances for leader DNS changes tests
+        res.append(MesosEndpoint(ip='127.0.0.6', port=5050))
+        # mesos non-leading master that runs Mesos and AR
         res.append(ReflectingTcpIpEndpoint(ip='127.0.0.5', port=5050))
+        res.append(ReflectingTcpIpEndpoint(ip='127.0.0.5', port=80))
         # marathon
         res.append(MarathonEndpoint(ip='127.0.0.1', port=8080))
         # cosmos

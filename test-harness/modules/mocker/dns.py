@@ -8,8 +8,6 @@ import logging
 
 from dnslib import (
     A,
-    DNSRecord,
-    DNSHeader,
     QTYPE,
     RR,
 )
@@ -39,14 +37,18 @@ class EmptyResolver(BaseResolver):
     """EmptyResolver returns empty reply for any DNS query"""
 
     def resolve(self, request, handler):
-        return DNSRecord(
-            DNSHeader(id=request.header.id, qr=1, aa=1, ra=1), q=request.q)
+        return request.reply()
 
 
 class MesosLeaderResolver(BaseResolver):
     """MesosLeaderResolver returns responses to leader.mesos queries"""
 
-    def __init__(self, leader_ip, ttl=5, domain=DomainName('mesos')):
+    DEFAULT_TTL = 60
+
+    def __init__(self, leader_ip, ttl=None, domain=DomainName('mesos')):
+        if ttl is None:
+            ttl = self.DEFAULT_TTL
+
         self.leader_ip = leader_ip
         self.ttl = ttl
         self.domain = domain
@@ -66,7 +68,7 @@ class MesosLeaderResolver(BaseResolver):
             return reply
 
         log.debug((
-            "MesosLeaderReplyHandler: not a leader.mesos DNS query"
+            "MesosLeaderResolver: not a leader.mesos DNS query "
             "returning empty reponse"))
         return EmptyResolver().resolve(request, handler)
 
@@ -75,19 +77,23 @@ class MesosLeaderDNSServer:
     """Simple DNS server that responds to leader.mesos DNS queries"""
 
     def __init__(self, server_address, leader_ip):
-        self.server = DNSServer(
-            resolver=MesosLeaderResolver(leader_ip, ttl=1),
+        self._default_resolver = MesosLeaderResolver(leader_ip)
+        self._server = DNSServer(
+            resolver=self._default_resolver,
             address=server_address[0],
             port=server_address[1],
             logger=DNSLogger("pass"),  # Don't log anything to stdout
             )
 
     def start(self):
-        self.server.start_thread()
+        self._server.start_thread()
 
     def stop(self):
-        self.server.stop()
+        self._server.stop()
 
-    def reply_with_leader_ip(self, leader_ip):
+    def reset(self):
+        self._server.server.resolver = self._default_resolver
+
+    def reply_with_leader_ip(self, leader_ip, ttl=None):
         """Changes the IP of resolved leader.mesos queries"""
-        self.server.server.resolver = MesosLeaderResolver(leader_ip)
+        self._server.server.resolver = MesosLeaderResolver(leader_ip, ttl=ttl)
