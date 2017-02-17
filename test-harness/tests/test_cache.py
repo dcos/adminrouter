@@ -404,7 +404,7 @@ class TestCache():
             resp = requests.get(url,
                                 allow_redirects=False,
                                 headers=superuser_user_header)
-            assert resp.status_code == 404
+            assert resp.status_code == 500
 
             mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                                 func_name='enable_nginx_task')
