@@ -50,8 +50,13 @@ NGINX resolver respects DNS response TTL flags on each record so the resolve
 results are cached for period controlled by a upstream DNS server.
 
 AR currently uses a `mesos-dns` as a DNS server backend and it expects the
-server to run on a port `61053` and respond at least to `leader.mesos` - `A`
-type query.
+server to run on a port `61053` and respond at least to following type `A`
+queries:
+
+* `leader.mesos`
+* `master.mesos`
+* `agent.mesos`
+* `slave.mesos`
 
 Related links:
 
@@ -196,8 +201,14 @@ with an error (`500 Internal server error`).
 
 #### DNS mock
 
-The AR requires a working DNS server that responds correctly to
-`leader.mesos` - `A` type query and resolves current Mesos leader instance.
+The AR requires a working DNS server that responds correctly to the following
+queries:
+
+* `leader.mesos` - `A`: current Mesos leader instance
+* `master.mesos` - `A`: any Mesos master instance
+* `agent.mesos` - `A`: any Mesos agent
+* `slave.mesos` - `A`: any Mesos agent
+
 Mocking library comes with a simple DNS in-memory programmable server that
 can be used to mock various DNS query responses and also to simulate leader
 instance changes.

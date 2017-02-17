@@ -4,6 +4,7 @@
 Programmable in-memory DNS server
 """
 
+import copy
 import logging
 
 from dnslib import (
@@ -40,44 +41,88 @@ class EmptyResolver(BaseResolver):
         return request.reply()
 
 
-class MesosLeaderResolver(BaseResolver):
-    """MesosLeaderResolver returns responses to leader.mesos queries"""
+DEFAULT_TTL = 60
 
-    DEFAULT_TTL = 60
+# Records that MesosDNSResolver uses to construct replies. We're not adding
+# rname at this place as it can be overriden by MesosDNSResolver TLD
+# configuration. The each record's key is used as a DNS label that is put
+# before TLD in the final answer, i.e.: "master" -> "master.mesos."
+MESOS_DNS_RECORDS = {
+    "leader": RR(
+        rtype=QTYPE.A,
+        rclass=1,
+        ttl=DEFAULT_TTL,
+        rdata=A("127.0.0.2")),
+    "master": RR(
+        rtype=QTYPE.A,
+        rclass=1,
+        ttl=DEFAULT_TTL,
+        rdata=A('127.0.0.1')),
+    "agent": RR(
+        rtype=QTYPE.A,
+        rclass=1,
+        ttl=DEFAULT_TTL,
+        rdata=A('127.0.0.1')),
+    "slave": RR(
+        rtype=QTYPE.A,
+        rclass=1,
+        ttl=DEFAULT_TTL,
+        rdata=A('127.0.0.1')),
+}
 
-    def __init__(self, leader_ip, ttl=None, domain=DomainName('mesos')):
-        if ttl is None:
-            ttl = self.DEFAULT_TTL
 
+class MesosDNSResolver(BaseResolver):
+    """MesosDNSResolver returns responses to *.mesos queries
+
+    By default it reads supported responses from `MESOS_DNS_RECORDS` and it
+    allows to override paramters of all responses TTLs and also leader IP
+    address.
+
+    Args:
+        leader_ip: Override the IP address of leader.mesos query
+        ttl: Override the TTL of all replies
+        domain: Override the TLD (defaults to mesos.)
+    """
+
+    def __init__(self, leader_ip=None, ttl=None, domain=DomainName('mesos')):
         self.leader_ip = leader_ip
         self.ttl = ttl
         self.domain = domain
 
     def resolve(self, request, handler):
-        # We can respond only to leader.mesos A requests
-        if (str(request.q.qname) == (self.domain.leader + ".") and
-                QTYPE[request.q.qtype] == "A"):
 
-            reply = request.reply()
-            reply.add_answer(RR(
-                rname=self.domain.leader,
-                rtype=QTYPE.A,
-                rclass=1,
-                ttl=self.ttl,
-                rdata=A(self.leader_ip)))
-            return reply
+        for name, rr in MESOS_DNS_RECORDS.items():
+            # DNS resolver allows to override TLD domain so  we construct FQDN
+            # that can be compared with request
+            fqdn = "{}.{}.".format(name, self.domain)
+            # For now we're comparing only the name and rtype
+            if str(request.q.qname) == fqdn and request.q.qtype == rr.rtype:
+                reply = request.reply()
+
+                answer = copy.deepcopy(rr)
+                answer.rname = fqdn
+
+                # This server allows to override TTL and leader_ip
+                if self.ttl:
+                    answer.ttl = self.ttl
+
+                if name == "leader" and self.leader_ip:
+                    answer.rdata = A(self.leader_ip)
+
+                reply.add_answer(answer)
+                return reply
 
         log.debug((
-            "MesosLeaderResolver: not a leader.mesos DNS query "
+            "MesosLeaderResolver: not a support *.mesos DNS query "
             "returning empty reponse"))
         return EmptyResolver().resolve(request, handler)
 
 
-class MesosLeaderDNSServer:
-    """Simple DNS server that responds to leader.mesos DNS queries"""
+class MesosDNSServer:
+    """Simple DNS server that responds to *.mesos DNS queries"""
 
     def __init__(self, server_address, leader_ip):
-        self._default_resolver = MesosLeaderResolver(leader_ip)
+        self._default_resolver = MesosDNSResolver(leader_ip)
         self._server = DNSServer(
             resolver=self._default_resolver,
             address=server_address[0],
@@ -96,4 +141,4 @@ class MesosLeaderDNSServer:
 
     def reply_with_leader_ip(self, leader_ip, ttl=None):
         """Changes the IP of resolved leader.mesos queries"""
-        self._server.server.resolver = MesosLeaderResolver(leader_ip, ttl=ttl)
+        self._server.server.resolver = MesosDNSResolver(leader_ip, ttl=ttl)

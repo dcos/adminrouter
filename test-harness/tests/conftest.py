@@ -10,7 +10,7 @@ from runner.common import (
     LogCatcher,
     SyslogMock,
     )
-from mocker.dns import MesosLeaderDNSServer
+from mocker.dns import MesosDNSServer
 from mocker.jwt import generate_rs256_jwt, generate_hs256_jwt
 from util import add_lo_ipaddr, del_lo_ipaddr, ar_listen_link_setup
 
@@ -96,7 +96,7 @@ def syslog_mock(log_catcher):
 
 @pytest.fixture(scope='session')
 def dns_server_mock_s():
-    s = MesosLeaderDNSServer(
+    s = MesosDNSServer(
         server_address=('127.0.0.1', 61053),
         leader_ip='127.0.0.2',
         )
