@@ -162,7 +162,7 @@ class TestCache():
 
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                             func_name='enable_nginx_task')
-        url = ar.make_url_from_path('/service/nginx/foo/bar/')
+        url = ar.make_url_from_path('/service/nginx-enabled/foo/bar/')
 
         with GuardedSubprocess(ar):
             # Register Line buffer filter:
@@ -215,7 +215,7 @@ class TestCache():
 
         mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                             func_name='enable_nginx_task')
-        url = ar.make_url_from_path('/service/nginx/foo/bar/')
+        url = ar.make_url_from_path('/service/nginx-enabled/foo/bar/')
 
         with GuardedSubprocess(ar):
             # Register Line buffer filter:
@@ -376,7 +376,7 @@ class TestCache():
                             func_name='enable_nginx_task')
 
         ar = nginx_class()
-        url = ar.make_url_from_path('/service/nginx/bar/baz')
+        url = ar.make_url_from_path('/service/nginx-enabled/bar/baz')
 
         with GuardedSubprocess(ar):
             lbf = LineBufferFilter(filter_regexp,
@@ -398,13 +398,13 @@ class TestCache():
             self, nginx_class, superuser_user_header, mocker):
         cache_poll_period = 4
         ar = nginx_class(cache_poll_period=cache_poll_period, cache_expiration=3)
-        url = ar.make_url_from_path('/service/nginx/bar/baz')
+        url = ar.make_url_from_path('/service/nginx-enabled/bar/baz')
 
         with GuardedSubprocess(ar):
             resp = requests.get(url,
                                 allow_redirects=False,
                                 headers=superuser_user_header)
-            assert resp.status_code == 404
+            assert resp.status_code == 500
 
             mocker.send_command(endpoint_id='http://127.0.0.1:8080',
                                 func_name='enable_nginx_task')
@@ -524,7 +524,7 @@ class TestCache():
                             func_name='record_requests')
 
         ar = nginx_class()
-        url = ar.make_url_from_path('/service/nginx/bar/baz')
+        url = ar.make_url_from_path('/service/nginx-enabled/bar/baz')
 
         with GuardedSubprocess(ar):
             # Let the cache warm-up:
