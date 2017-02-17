@@ -15,6 +15,7 @@ from generic_test_code import (
 log = logging.getLogger(__name__)
 
 authed_endpoints = ['/exhibitor',
+                    '/service/nginx-alwaysthere',
                     '/system/health/v1',
                     '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/logs/v1'
                     '/system/v1/agent/de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1/metrics/v0'
