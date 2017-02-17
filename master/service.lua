@@ -52,7 +52,3 @@ for _, framework in ipairs(state["frameworks"]) do
     end
   end
 end
-
-ngx.status = ngx.HTTP_NOT_FOUND
-ngx.say("404 Not Found: service `" .. ngx.var.serviceid .. "` unknown")
-return ngx.exit(ngx.HTTP_NOT_FOUND)
