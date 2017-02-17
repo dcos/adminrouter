@@ -168,6 +168,7 @@ NGINX_TASK_ALWAYSTHERE = {
         }
     ]
 }
+
 NGINX_TASK_ENABLED = {
     "id": "/nginx-enabled",
     "cmd": ("cd /opt/bitnami/nginx && harpoon initialize nginx && "
@@ -382,8 +383,8 @@ class MarathonEndpoint(RecordingTcpIpEndpoint):
             self._context.data["leader-content"] = {"leader": "127.0.0.2:80"}
 
     def enable_nginx_task(self, *_):
-        """Change the endpoint output so that it simulates Nginx task running in
-           the cluster
+        """Change the endpoint output so that it simulates extra Nginx task
+           running in the cluster
         """
         with self._context.lock:
             self._context.data["endpoint-content"]["apps"].append(NGINX_TASK_ENABLED)
