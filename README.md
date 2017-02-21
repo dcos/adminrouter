@@ -35,19 +35,22 @@ Tasks running in nested [Marathon app groups](https://mesosphere.github.io/marat
 ## DNS resolution
 
 Some of the AR configuration depends on a correct DNS resolution of the current
-Mesos leader instance. NGINX comes with own DNS resolver component that can
-be configured to resolve names from particular DNS server. The configuration
-referes to leading instance with a name `leader.mesos` and it expects that a
-DNS server used as a resolver backed resolves the name to correct leading Mesos
-master IP address.
+Mesos leader instance. NGINX comes with its own DNS resolver component that can
+be configured to resolve names from a particular DNS server. The configuration
+refers to a leading instance with the `leader.mesos` name and expects that a DNS
+server used as a resolver backend resolves the name to the IP address of the
+leading Mesos master.
 
-Open source version of NGINX doesn't support periodic DNS resolution of
-upstream servers. There is a workaround that AR uses to overcome this
-limitation. The workaround relies on fact that re-resolves any URL in a
-[`proxy_pass`](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) configuration directive that comes from a
-[variable](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set).
-NGINX resolver respects DNS response TTL flags on each record so the resolve
-results are cached for period controlled by a upstream DNS server.
+The open source version of NGINX does not support periodic re-resolution of
+hostnames used in the upstream definitions. In Admin Router, we use
+[a workaround](https://www.jethrocarr.com/2013/11/02/nginx-reverse-proxies-and-dns-resolution/)
+to overcome this limitation, so that hostnames used in
+[`proxy_pass`](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
+configuration directives are guaranteed to be re-resolved periodically, either according to
+the TTL emitted by the DNS server or, if given, according to the `valid=`
+argument of the
+[resolver](http://nginx.org/en/docs/http/ngx_http_core_module.html#resolver)
+configuration.
 
 AR currently uses a `mesos-dns` as a DNS server backend and it expects the
 server to run on a port `61053` and respond at least to following type `A`
@@ -61,7 +64,6 @@ queries:
 Related links:
 
 * http://serverfault.com/questions/240476/how-to-force-nginx-to-resolve-dns-of-a-dynamic-hostname-everytime-when-doing-p
-* https://www.jethrocarr.com/2013/11/02/nginx-reverse-proxies-and-dns-resolution/
 
 Internal reference: `DCOS-5809`.
 
