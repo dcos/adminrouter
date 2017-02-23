@@ -9,3 +9,4 @@ pytest-pythonpath
 pytest-timeout==1.2.0
 pytest>=3.0.4
 requests==2.12.1
+dnslib==0.9.7
