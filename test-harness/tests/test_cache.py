@@ -1,6 +1,7 @@
 # Copyright (C) Mesosphere, Inc. See LICENSE file for details.
 
 import logging
+import pytest
 import requests
 import time
 
@@ -637,6 +638,60 @@ class TestCache():
 
             # Verify that the cache is OK now
             ping_mesos_agent(ar, superuser_user_header)
+
+    def test_if_early_boot_stage_is_not_sensitive_to_failures(
+            self, nginx_class, valid_user_header, mocker, log_catcher):
+        # The idea here is to make Backend so slow, that AR is unable to
+        # update cache on first request. AR should then switch to fail-fast
+        # behaviour and wait for timers to update the backend when it recovers.
+
+        # This test asserts that in the case where a request is blocked,
+        # waiting for a cache update, and that update fails, then all new
+        # requests instantly fail with 503. Requests already queued will time
+        # out just the same way the first one did.
+
+        refresh_lock_timeout = 10
+        backend_request_timeout = 5
+
+        ar = nginx_class(cache_first_poll_delay=1,
+                         cache_poll_period=3,
+                         cache_expiration=2,
+                         cache_max_age_soft_limit=1200,
+                         cache_max_age_hard_limit=1800,
+                         cache_backend_request_timeout=backend_request_timeout,
+                         cache_refresh_lock_timeout=refresh_lock_timeout,
+                         )
+        agent_id = 'de1baf83-c36c-4d23-9cb0-f89f596cd6ab-S1'
+        url = ar.make_url_from_path('/agent/{}/blah/blah'.format(agent_id))
+        v = Vegeta(log_catcher, target=url, jwt=valid_user_header, rate=3)
+
+        # Make mesos slooowwwww.....
+        # It mus respond slower than backend_request_timeout
+        mocker.send_command(endpoint_id='http://127.0.0.2:5050',
+                            func_name='always_stall',
+                            aux_data=backend_request_timeout * 1.5)
+
+        with GuardedSubprocess(ar):
+            with GuardedSubprocess(v):
+                time.sleep(1)  # let it warm-up!
+
+                # Vegeta by this time should have already clogged AR
+
+                # Expect request timeout due to the cache lock holding the
+                # requests back
+                with pytest.raises(requests.exceptions.ReadTimeout):
+                    ping_mesos_agent(ar,
+                                     valid_user_header,
+                                     timeout=(10.0, backend_request_timeout * 1.5))
+
+                # Requests from now on should be failing fast
+                try:
+                    ping_mesos_agent(ar,
+                                     valid_user_header,
+                                     timeout=1,
+                                     expect_status=503)
+                except requests.exceptions.ReadTimeout:
+                    assert False, "AR does not fail-fast request after early-boot stage"
 
     def test_if_early_boot_stage_can_recover_from_a_bit_slow_backend(
             self, nginx_class, superuser_user_header, mocker, log_catcher):
