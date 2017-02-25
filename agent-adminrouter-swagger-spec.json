@@ -1,0 +1,115 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Agent Adminrouter API Specification",
+    "description": "The API for the agent-side DC/OS adminrouter (NGINX).",
+    "termsOfService": "http://www.mesosphere.com",
+    "contact": {
+      "name": "Mesosphere Support"
+    },
+    "license": {
+      "name": "Apache 2"
+    }
+  },
+  "host": "<agent_ip>",
+  "basePath": "/system/v1",
+  "schemes": [
+    "http", "https"
+  ],
+   "paths": {
+    "/health/v1": {
+      "get": {
+        "description": "Base route for the system health API",
+        "produces": [
+          "application/json",
+        ],
+        "parameters": [
+          {
+            "name": "cache",
+            "in": "query",
+            "description": "Disable or enable caching",
+            "required": false,
+            "type": "int",
+            "format": "int32"
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Systemd Unit Status",
+            "schema": {
+              "type": "hash",
+              "items": {
+                "$ref": "#/definitions/unitStatus"
+              }
+            }
+          },
+          "default": {
+            "description": "unexpected error",
+            "schema": {
+              "$ref": "#/definitions/ErrorModel"
+            }
+          }
+        }
+      }
+    },
+    "/health/v1/report": {
+      "get": {
+        "description": "Report route for the system health API for this node only",
+        "produces": [
+          "application/json",
+        ],
+        "parameters": [
+          {
+            "name": "cache",
+            "in": "query",
+            "description": "Disable or enable caching",
+            "required": false,
+            "type": "int",
+            "format": "int32"
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete cluster report for health",
+            "schema": {
+              "type": "hash",
+              "items": {
+                "$ref": "#/definitions/healthReport"
+              }
+            }
+          },
+          "default": {
+            "description": "unexpected error",
+            "schema": {
+              "$ref": "#/definitions/ErrorModel"
+            }
+          }
+        }
+      }
+    },
+    "/health/v1/report/download": {
+      "get": {
+        "description": "Report download",
+        "produces": [
+          "Content-disposition: attachment: filename=health-report.json",
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete cluster report for health, for download",
+            "schema": {
+              "type": "hash",
+              "items": {
+                "$ref": "#/definitions/healthReportDownload"
+              }
+            }
+          },
+          "default": {
+            "description": "unexpected error",
+            "schema": {
+              "$ref": "#/definitions/ErrorModel"
+            }
+          }
+        }
+      }
+    }
