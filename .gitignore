@@ -1,5 +1,0 @@
-*.sw?
-*.pyc
-.cache/*
-test-harness/logs/*.log
-*.dia~
