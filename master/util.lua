@@ -40,6 +40,19 @@ function util.get_svcapps()
 end
 
 
+function util.get_mesosleader()
+    -- Read Mesos state JSON from SHM cache.
+    -- Return decoded JSON or nil upon error.
+    local mesosleaderjson = statecache.get_mesosleader()
+    local mesosleader, err = cjson_safe.decode(mesosleaderjson)
+    if not mesosleader then
+        ngx.log(ngx.ERR, "Cannot decode JSON: " .. err)
+        return nil
+    end
+    return mesosleader
+end
+
+
 function util.mesos_get_state()
     -- Read Mesos state JSON from SHM cache.
     -- Return decoded JSON or nil upon error.

@@ -1,6 +1,7 @@
 local cjson_safe = require "cjson.safe"
 local shmlock = require "resty.lock"
 local http = require "resty.http.simple"
+local resolver = require "resty.resolver"
 
 
 local _M = {}
@@ -165,6 +166,82 @@ local function fetch_and_cache_state_marathon()
 end
 
 
+local function fetch_and_store_mesos_leader_state()
+    -- Lua forbids jumping over local variables definition, hence we define all
+    -- of them here.
+    local res_body, r, err, answers
+    ngx.log(ngx.NOTICE, "Cache Mesos Leader state")
+
+    if HOST_IP == 'unknown' then
+        ngx.log(ngx.ERR,
+        "Local Mesos Master IP address is unknown, cache entry is unusable")
+        res_body = '{"is_local": "unknown", "leader_ip": null}'
+        goto store_cache
+    end
+
+    -- We want to use Navstar's dual-dispatch approach and get the response
+    -- as fast as possible from any operational MesosDNS. If we set it to local
+    -- instance, its failure will break this part of the cache as well.
+    --
+    -- As for the DNS TTL - we're on purpose ignoring it and going with own
+    -- refresh cycle period. Assuming that Navstar and MesosDNS do not do
+    -- caching on their own, we just treat DNS as an interface to obtain
+    -- current mesos leader data. How long we cache it is just an internal
+    -- implementation detail of AR.
+    --
+    -- Also, see https://github.com/openresty/lua-resty-dns#limitations
+    r, err = resolver:new{
+        nameservers = {{"198.51.100.1", 53},
+                       {"198.51.100.2", 53},
+                       {"198.51.100.3", 53}},
+        retrans = 3,  -- retransmissions on receive timeout
+        timeout = 2000,  -- msec
+    }
+
+    if not r then
+        ngx.log(ngx.ERR, "Failed to instantiate the resolver: " .. err)
+        return
+    end
+
+    answers, err = r:query("leader.mesos")
+    if not answers then
+        ngx.log(ngx.ERR, "Failed to query the DNS server: " .. err)
+        return
+    end
+
+    if answers.errcode then
+        ngx.log(ngx.ERR,
+            "DNS server returned error code: " .. answers.errcode .. ": " .. answers.errstr)
+        return
+    end
+
+    if util.table_len(answers) == 0 then
+        ngx.log(ngx.ERR,
+            "DNS server did not return anything for leader.mesos")
+        return
+    end
+
+    -- Yes, we are assuming that leader.mesos will always be just one A entry.
+    -- AAAA support is a different thing...
+
+    if answers[1].address == HOST_IP then
+        res_body = '{"is_local": "yes", "leader_ip": "'.. HOST_IP ..'"}'
+        ngx.log(ngx.NOTICE, "Mesos Leader is local")
+    else
+        res_body = '{"is_local": "no", "leader_ip": "'.. answers[1].address ..'"}'
+        ngx.log(ngx.NOTICE, "Mesos Leader is non-local: `" .. answers[1].address .. "`")
+    end
+
+    ::store_cache::
+    if not cache_data("mesos_leader", res_body) then
+        ngx.log(ngx.ERR, "Storing `Mesos Leader` state cache failed")
+        return
+    end
+
+    return
+end
+
+
 local function fetch_and_cache_state_mesos()
     -- Fetch state JSON summary from Mesos. If successful, store to SHM cache.
     -- Expected to run within lock context.
@@ -188,6 +265,8 @@ local function fetch_and_cache_state_mesos()
     -- cache, too. TODO(jp): decouple these entirely, so that the
     -- Marathon app cache can get its own timing/execution logic.
     fetch_and_cache_state_marathon()
+    -- Piggy-back this and attempt to update mesos leader cache as well:
+    fetch_and_store_mesos_leader_state()
 end
 
 
@@ -329,6 +408,32 @@ end
 
 -- Expose interface for requesting service summary JSON.
 _M.get_svcapps = get_svcapps
+
+
+local function get_mesosleader(retry)
+   local cache = ngx.shared.mesos_state_cache
+   local mesosleaderjson = cache:get("mesos_leader")
+   if not mesosleaderjson then
+        if retry then
+            ngx.log(
+                ngx.ERR,
+                "Could not retrieve Service state when first requested."
+            )
+            return nil
+        end
+        ngx.log(
+            ngx.NOTICE,
+            "Service state not available in cache yet. Fetch it."
+        )
+        refresh_mesos_state_cache()
+        return get_mesosleader(true)
+    end
+    return mesosleaderjson
+end
+
+
+-- Expose interface for requesting service summary JSON.
+_M.get_mesosleader = get_mesosleader
 
 
 local function get_state_summary(retry)
